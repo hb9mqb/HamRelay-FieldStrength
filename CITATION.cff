@@ -9,7 +9,7 @@ authors:
 version: 0.1.0
 date-released: 2026-07-19
 license: MIT
-repository-code: "https://github.com/coderplus007/HamRelay-FieldStrength"
+repository-code: "https://github.com/hb9mqb/HamRelay-FieldStrength"
 abstract: >-
   Reproducible terrain-aware repeater field-strength maps, numerical web
   overlays, and reference S-meter sampling based on ITU-R P.1812.

@@ -34,7 +34,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/coderplus007/hamrelay-field-strength
+          images: ghcr.io/hb9mqb/hamrelay-field-strength
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}

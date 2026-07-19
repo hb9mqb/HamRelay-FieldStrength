@@ -54,10 +54,10 @@ apple = ["mlx>=0.23,<1; platform_system == 'Darwin' and platform_machine == 'arm
 hamrelay-field-strength = "hamrelay_field_strength.cli:main"
 
 [project.urls]
-Documentation = "https://github.com/coderplus007/HamRelay-FieldStrength#readme"
-Issues = "https://github.com/coderplus007/HamRelay-FieldStrength/issues"
-Source = "https://github.com/coderplus007/HamRelay-FieldStrength"
-Changelog = "https://github.com/coderplus007/HamRelay-FieldStrength/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/hb9mqb/HamRelay-FieldStrength#readme"
+Issues = "https://github.com/hb9mqb/HamRelay-FieldStrength/issues"
+Source = "https://github.com/hb9mqb/HamRelay-FieldStrength"
+Changelog = "https://github.com/hb9mqb/HamRelay-FieldStrength/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hamrelay_field_strength"]

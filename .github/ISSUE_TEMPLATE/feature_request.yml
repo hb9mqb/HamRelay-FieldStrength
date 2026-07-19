@@ -83,7 +83,7 @@ body:
       value: |
         Substantial, high-quality intellectual contributions to the research may be
         considered for co-authorship under the transparent criteria in
-        [CONTRIBUTING.md](https://github.com/coderplus007/HamRelay-FieldStrength/blob/main/CONTRIBUTING.md).
+        [CONTRIBUTING.md](https://github.com/hb9mqb/HamRelay-FieldStrength/blob/main/CONTRIBUTING.md).
         Authorship is never based on commit count and is not promised by opening an issue.
 
   - type: checkboxes
@@ -97,4 +97,3 @@ body:
           required: true
         - label: I agree to follow the Code of Conduct when participating in this discussion.
           required: true
-

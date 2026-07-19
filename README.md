@@ -1,6 +1,6 @@
 # HamRelay Field Strength
 
-[![CI](https://github.com/coderplus007/HamRelay-FieldStrength/actions/workflows/ci.yml/badge.svg)](https://github.com/coderplus007/HamRelay-FieldStrength/actions/workflows/ci.yml)
+[![CI](https://github.com/hb9mqb/HamRelay-FieldStrength/actions/workflows/ci.yml/badge.svg)](https://github.com/hb9mqb/HamRelay-FieldStrength/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Model: ITU--R P.1812--8](https://img.shields.io/badge/model-ITU--R%20P.1812--8-0050a4)](https://www.itu.int/rec/R-REC-P.1812/en)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab)](pyproject.toml)
@@ -163,7 +163,7 @@ is ready. Press **Calculate selected** once; the demo then displays the real
 P.1812 result, legend, hover readings, and download links automatically.
 
 The compose file uses the downloadable multi-architecture image
-`ghcr.io/coderplus007/hamrelay-field-strength:latest` when published; add
+`ghcr.io/hb9mqb/hamrelay-field-strength:latest` when published; add
 `--build` to build locally. The first calculation in `auto` terrain mode
 downloads only the required public Copernicus GLO-30 COG tiles and caches them,
 with per-tile GLO-90 fallback. The container downloads the integral P.1812 maps
@@ -181,7 +181,7 @@ native macOS is required for M5 Metal acceleration.
 Python 3.11+ and GDAL-compatible Rasterio wheels are required.
 
 ```bash
-git clone https://github.com/coderplus007/HamRelay-FieldStrength.git
+git clone https://github.com/hb9mqb/HamRelay-FieldStrength.git
 cd HamRelay-FieldStrength
 python -m venv .venv
 source .venv/bin/activate

@@ -1,9 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security vulnerability privately
-    url: https://github.com/coderplus007/HamRelay-FieldStrength/security/advisories/new
+    url: https://github.com/hb9mqb/HamRelay-FieldStrength/security/advisories/new
     about: Do not disclose vulnerabilities, credentials, or sensitive datasets in a public issue.
   - name: Read the security policy
-    url: https://github.com/coderplus007/HamRelay-FieldStrength/blob/main/SECURITY.md
+    url: https://github.com/hb9mqb/HamRelay-FieldStrength/blob/main/SECURITY.md
     about: Review supported reporting and safe-deployment guidance before reporting a security issue.
-

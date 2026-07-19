@@ -103,7 +103,7 @@ body:
       value: |
         The project welcomes collaborators and is seeking scientific co-authors.
         Substantial intellectual contributions are evaluated under
-        [the contribution and authorship criteria](https://github.com/coderplus007/HamRelay-FieldStrength/blob/main/CONTRIBUTING.md);
+        [the contribution and authorship criteria](https://github.com/hb9mqb/HamRelay-FieldStrength/blob/main/CONTRIBUTING.md);
         submitting evidence alone does not guarantee authorship.
 
   - type: checkboxes
@@ -119,4 +119,3 @@ body:
           required: true
         - label: I agree to follow the Code of Conduct during technical review.
           required: true
-

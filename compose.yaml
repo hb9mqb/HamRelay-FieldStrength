@@ -1,6 +1,6 @@
 services:
   field-strength:
-    image: ghcr.io/coderplus007/hamrelay-field-strength:${IMAGE_TAG:-latest}
+    image: ghcr.io/hb9mqb/hamrelay-field-strength:${IMAGE_TAG:-latest}
     build:
       context: .
     restart: unless-stopped
