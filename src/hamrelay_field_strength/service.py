@@ -67,9 +67,13 @@ if _cors_origins:
 _JOBS: dict[str, dict[str, object]] = {}
 _JOBS_LOCK = threading.Lock()
 initialize_database()
-_seed_path = os.environ.get("FIELD_STRENGTH_SEED_STATIONS")
-if _seed_path:
-    seed_from_file(Path(_seed_path))
+_seed_setting = os.environ.get("FIELD_STRENGTH_SEED_STATIONS")
+_default_seed_path = Path(__file__).resolve().parents[2] / "examples" / "stations.json"
+_seed_path = (
+    _default_seed_path if _seed_setting is None else Path(_seed_setting) if _seed_setting else None
+)
+if _seed_path is not None and _seed_path.is_file():
+    seed_from_file(_seed_path)
 
 
 class AnalysisRequest(BaseModel):

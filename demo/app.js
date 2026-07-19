@@ -22,7 +22,7 @@ async function loadStations() {
   const coverage = await json("/v1/coverages");
   const calculated = new Set(coverage.items.map(item=>item.station_id));
   const previous = new Set(selectedIds());
-  const autoSelected = previous.size ? null : stations.find(s=>calculated.has(s.station_id))?.station_id;
+  const autoSelected = previous.size ? null : (stations.find(s=>calculated.has(s.station_id))??stations[0])?.station_id;
   $("stationList").replaceChildren();
   if(!stations.length) $("stationList").append(Object.assign(document.createElement("p"),{textContent:"No stations yet. Add the example below."}));
   stations.forEach(s=>{
@@ -33,6 +33,7 @@ async function loadStations() {
     label.append(input,name,details); $("stationList").append(label);
   });
   stations.forEach(s=>L.marker([s.latitude_deg,s.longitude_deg]).bindPopup(`<b>${s.station_id}</b><br>${s.tx_frequency_mhz} MHz · ${s.erp_w} W ERP`).addTo(markers));
+  if(autoSelected&&!calculated.has(autoSelected)) $("jobStatus").textContent=`Ready. ${autoSelected} is selected. Press Calculate selected.`;
 }
 
 async function saveStation() {

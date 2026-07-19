@@ -132,6 +132,9 @@ threshold, absolute legend, pointer field/S-meter inspection, and downloads.
 The fresh Docker database is seeded with the real HB9ZG Rigi-Scheidegg example
 from [examples/stations.json](examples/stations.json). Seed records are inserted
 only when their station ID is absent, so later starts never replace edited data.
+On a fresh start HB9ZG is selected automatically and the 5 km quick-test radius
+is ready. Press **Calculate selected** once; the demo then displays the real
+P.1812 result, legend, hover readings, and download links automatically.
 
 The compose file uses the downloadable multi-architecture image
 `ghcr.io/coderplus007/hamrelay-field-strength:latest` when published; add

@@ -47,7 +47,7 @@
       <section>
         <h2>2 · Calculate</h2>
         <div class="grid">
-          <label>Radius <output id="radiusValue">10 km</output><input id="radius" type="range" min="1" max="100" value="10"></label>
+          <label>Radius <output id="radiusValue">5 km</output><input id="radius" type="range" min="1" max="100" value="5"></label>
           <label>Terrain<select id="terrainMode"><option value="auto">Automatic best available</option><option value="dataset">Named dataset</option></select></label>
           <input id="datasetId" placeholder="Dataset ID" disabled>
           <label>Visual GeoTIFF<select id="geotiffBackground"><option value="transparent">Transparent layer</option><option value="streetmap">Street map</option><option value="map">Map</option></select></label>
@@ -55,7 +55,7 @@
           <label class="check"><input id="wantTiles" type="checkbox" checked>Web tiles</label>
           <button id="calculate">Calculate selected</button>
         </div>
-        <pre id="jobStatus">Ready.</pre>
+        <pre id="jobStatus">Loading the ready-to-calculate example…</pre>
       </section>
 
       <section>
