@@ -4,7 +4,8 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
 }).addTo(map);
 const markers = L.layerGroup().addTo(map);
-let overlays = [], stations = [], sampleTimer;
+let overlay = null, stations = [], sampleTimer;
+const hoverPopup=L.popup({closeButton:false,autoPan:false,className:"field-popup",offset:[12,0]});
 
 async function json(url, options={}) {
   const response = await fetch(url, options);
@@ -76,12 +77,12 @@ function setCalculating(active){
 
 function showOverlay(){
   const ids=selectedIds(); if(!ids.length) return;
-  overlays.forEach(layer=>map.removeLayer(layer)); overlays=[];
+  if(overlay){map.removeLayer(overlay);overlay=null}
   const threshold=+$("threshold").value, opacity=+$("opacity").value/100;
-  const urls=$("composite").checked && ids.length>1
-    ? [`/v1/composites/web-tiles/{z}/{x}/{y}.png?station_ids=${encodeURIComponent(ids.join(","))}&minimum_field_strength_dbuv_m=${threshold}&opacity=1`]
-    : ids.map(id=>`/v1/coverage/${encodeURIComponent(id)}/web-tiles/{z}/{x}/{y}.png?minimum_field_strength_dbuv_m=${threshold}`);
-  overlays=urls.map(url=>L.tileLayer(url,{opacity,maxZoom:18,noWrap:true}).addTo(map));
+  const url=ids.length>1
+    ? `/v1/composites/web-tiles/{z}/{x}/{y}.png?station_ids=${encodeURIComponent(ids.join(","))}&minimum_field_strength_dbuv_m=${threshold}&opacity=1`
+    : `/v1/coverage/${encodeURIComponent(ids[0])}/web-tiles/{z}/{x}/{y}.png?minimum_field_strength_dbuv_m=${threshold}`;
+  overlay=L.tileLayer(url,{opacity,maxZoom:18,noWrap:true}).addTo(map);
 }
 
 async function updateLegend(){
@@ -91,11 +92,21 @@ async function updateLegend(){
 
 function updateDownloads(){const id=selectedIds()[0]; for(const [element,path] of [[$("downloadRaw"),"field-strength.tif"],[$("downloadVisual"),"field-strength-visual.tif"]]){if(id){element.href=`/v1/coverage/${encodeURIComponent(id)}/${path}`;element.classList.remove("disabled")}else element.classList.add("disabled")}}
 
-map.on("mousemove", event=>{clearTimeout(sampleTimer);sampleTimer=setTimeout(async()=>{const ids=selectedIds();if(!ids.length)return;try{const data=await json("/v1/samples",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({station_ids:ids,latitude_deg:event.latlng.lat,longitude_deg:event.latlng.lng})});const s=data.strongest;$("cursorSample").textContent=s?`${s.station_id}: ${s.field_strength_dbuv_m} dBµV/m · ${s.expected_s_meter} · ${s.expected_receiver_dbm} dBm`:"No calculated field here."}catch(error){$("cursorSample").textContent=error.message}},140)});
+function showFieldPopup(sample,latlng){
+  const content=document.createElement("div"); content.className="field-popup-content";
+  const station=document.createElement("b"); station.textContent=sample.station_id;
+  const level=document.createElement("strong"); level.textContent=sample.expected_s_meter;
+  const field=document.createElement("span"); field.textContent=`${sample.field_strength_dbuv_m} dBµV/m`;
+  const receiver=document.createElement("small"); receiver.textContent=`Expected level · ${sample.expected_receiver_dbm} dBm · 0 dBi / 50 Ω`;
+  content.append(station,level,field,receiver); hoverPopup.setLatLng(latlng).setContent(content).openOn(map);
+}
 
-$("refreshStations").onclick=()=>loadStations().catch(showError); $("saveStation").onclick=()=>saveStation().catch(showError); $("calculate").onclick=()=>calculateSelected().catch(showError); $("showOverlay").onclick=()=>{showOverlay();updateLegend();updateDownloads()}; $("hideOverlay").onclick=()=>{overlays.forEach(layer=>map.removeLayer(layer));overlays=[]};
+map.on("mousemove", event=>{clearTimeout(sampleTimer);sampleTimer=setTimeout(async()=>{const ids=selectedIds();if(!ids.length)return;try{const data=await json("/v1/samples",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({station_ids:ids,latitude_deg:event.latlng.lat,longitude_deg:event.latlng.lng})});const s=data.strongest;$("cursorSample").textContent=s?`${s.station_id}: ${s.field_strength_dbuv_m} dBµV/m · ${s.expected_s_meter} · ${s.expected_receiver_dbm} dBm`:"No calculated field here.";if(s)showFieldPopup(s,event.latlng);else if(map.hasLayer(hoverPopup))map.removeLayer(hoverPopup)}catch(error){$("cursorSample").textContent=error.message}},140)});
+map.on("mouseout",()=>{clearTimeout(sampleTimer);if(map.hasLayer(hoverPopup))map.removeLayer(hoverPopup)});
+
+$("refreshStations").onclick=()=>loadStations().catch(showError); $("saveStation").onclick=()=>saveStation().catch(showError); $("calculate").onclick=()=>calculateSelected().catch(showError); $("showOverlay").onclick=()=>{showOverlay();updateLegend();updateDownloads()}; $("hideOverlay").onclick=()=>{if(overlay)map.removeLayer(overlay);overlay=null};
 $("terrainMode").onchange=()=>$("datasetId").disabled=$("terrainMode").value!=="dataset";
-$("radius").oninput=()=>$("radiusValue").value=`${$("radius").value} km`; $("threshold").oninput=()=>{$("thresholdValue").value=`${$("threshold").value} dBµV/m`;if(overlays.length)showOverlay()}; $("opacity").oninput=()=>{$("opacityValue").value=`${$("opacity").value}%`;overlays.forEach(layer=>layer.setOpacity(+$("opacity").value/100))};
-$("stationList").onchange=()=>{updateLegend();updateDownloads();if(overlays.length)showOverlay()};
+$("radius").oninput=()=>$("radiusValue").value=`${$("radius").value} km`; $("threshold").oninput=()=>{$("thresholdValue").value=`${$("threshold").value} dBµV/m`;if(overlay)showOverlay()}; $("opacity").oninput=()=>{$("opacityValue").value=`${$("opacity").value}%`;if(overlay)overlay.setOpacity(+$("opacity").value/100)};
+$("stationList").onchange=()=>{updateLegend();updateDownloads();if(overlay)showOverlay()};
 function showError(error){$("jobStatus").textContent=error.message}
 loadStations().then(()=>{updateLegend();updateDownloads();if(selectedIds().length)showOverlay()}).catch(showError);
