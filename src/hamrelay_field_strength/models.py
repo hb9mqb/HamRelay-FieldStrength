@@ -35,7 +35,10 @@ class Station(BaseModel):
 class CalculationRequest(BaseModel):
     station: Station
     dem_paths: list[Path] = Field(min_length=1)
+    clutter_paths: list[Path] = Field(default_factory=list)
+    clutter_mode: Literal["worldcover_classes", "height_m"] = "worldcover_classes"
     radio_climate_path: Path | None = None
+    itu_digital_maps_path: Path | None = None
     output_directory: Path
     radius_km: float = Field(default=100.0, gt=0.25, le=100.0)
     profile_step_m: float = Field(default=50.0, ge=10, le=250)
@@ -48,12 +51,19 @@ class CalculationRequest(BaseModel):
     location_percent: float = Field(default=50.0, ge=1, le=99)
     workers: int | Literal["auto"] = "auto"
 
-    @field_validator("dem_paths")
+    @field_validator("dem_paths", "clutter_paths")
     @classmethod
-    def dem_files_must_exist(cls, value: list[Path]) -> list[Path]:
+    def raster_files_must_exist(cls, value: list[Path]) -> list[Path]:
         missing = [str(path) for path in value if not path.is_file()]
         if missing:
             raise ValueError(f"DEM files do not exist: {', '.join(missing)}")
+        return value
+
+    @field_validator("radio_climate_path", "itu_digital_maps_path")
+    @classmethod
+    def optional_raster_file_must_exist(cls, value: Path | None) -> Path | None:
+        if value is not None and not value.is_file():
+            raise ValueError(f"input file does not exist: {value}")
         return value
 
     @field_validator("workers")

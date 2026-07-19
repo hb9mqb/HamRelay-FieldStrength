@@ -48,9 +48,12 @@ assumed, receiver parameters, statistical percentages, and near-field policy.
 - Receiver height defaults to 1.5 m AGL.
 - Time and location percentages default to 50%.
 - A missing radio-climate raster means inland zone 4. Coastal production runs
-  should provide a correctly classified zone raster.
-- Representative clutter is currently zero. This is explicit in the manifest;
-  it is not silently presented as urban accuracy.
+  provide a correctly classified zone raster; the engine validates codes and
+  derives both terminal-to-coast distances for every modeled path.
+- Clutter may be supplied as ESA WorldCover classes or non-negative heights in
+  metres. WorldCover classes use the manifest-recorded representative mapping:
+  tree cover 15 m, shrubland 3 m, built-up 15 m, herbaceous wetland 1 m, and
+  mangroves 10 m. Missing clutter remains an explicit zero-height fallback.
 - An isotropic antenna pattern is assumed. Directional patterns are a planned
   extension.
 

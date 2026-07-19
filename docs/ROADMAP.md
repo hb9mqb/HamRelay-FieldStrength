@@ -22,7 +22,7 @@ and provenance agree.
 
 - [ ] publish a standalone JSON Schema for the physical/artifact manifest
 - [ ] add optional radio-climate dataset acquisition profiles
-- [ ] evaluate an optional clutter/land-cover extension under a new model version
+- [x] add optional WorldCover-class or direct-height clutter rasters under a new model version
 - [ ] provide recipes for content-addressed object-storage publication
 - [ ] provide example adapters for durable job runners without coupling the core
   to a specific queue

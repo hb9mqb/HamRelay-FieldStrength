@@ -5,6 +5,27 @@ Versioning.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-19
+
+### Added
+
+- Optional ESA WorldCover class rasters or direct clutter-height rasters as
+  explicit P.1812 clutter inputs.
+- P.1812 sea/coastal/inland zone rasters with terminal-to-coast distance
+  calculation for every modeled path.
+- Clutter and radio-climate provenance in calculation manifests and API dataset
+  selection metadata.
+- Boundary-band assessment with an explicit guard threshold, recommended domain
+  expansion, and 100 km operational-cap provenance.
+- Explicit checksumable Py1812 digital-map archive input, reloaded in spawned
+  macOS and Windows workers instead of relying on inherited module state.
+
+### Changed
+
+- Bumped the calculation algorithm contract to `field-strength-v2`; clutter,
+  climatic zones, terminal coast distances, and ITU map provenance now affect
+  the reproducible result contract.
+
 ## [0.1.0] - 2026-07-19
 
 ### Added

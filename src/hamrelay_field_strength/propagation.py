@@ -24,7 +24,7 @@ from .terrain import NODATA, load_projected_grid, sample_ray
 
 MODEL_ID = "itu-r-p1812-8"
 IMPLEMENTATION_ID = "Py1812-a5205e6"
-ALGORITHM_VERSION = "field-strength-v1"
+ALGORITHM_VERSION = "field-strength-v2"
 GEOD = Geod(ellps="WGS84")
 _STATE: dict[str, Any] = {}
 
@@ -54,10 +54,55 @@ def _file_provenance(path: Path) -> dict[str, object]:
     return result
 
 
+def _binary_file_provenance(path: Path) -> dict[str, object]:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return {"filename": path.name, "bytes": path.stat().st_size, "sha256": digest.hexdigest()}
+
+
 def p525_free_space_field_dbuv_m(erp_w: float, distance_km: float) -> float:
     if erp_w <= 0 or distance_km <= 0:
         raise ValueError("ERP and distance must be positive")
     return 76.92 + 10 * math.log10(erp_w) - 20 * math.log10(distance_km)
+
+
+def worldcover_clutter_heights(classes: np.ndarray) -> np.ndarray:
+    """Map ESA WorldCover classes to documented representative clutter heights."""
+
+    heights = np.zeros(classes.shape, dtype="float32")
+    heights[np.isclose(classes, 10)] = 15.0  # tree cover
+    heights[np.isclose(classes, 20)] = 3.0  # shrubland
+    heights[np.isclose(classes, 50)] = 15.0  # built-up
+    heights[np.isclose(classes, 90)] = 1.0  # herbaceous wetland
+    heights[np.isclose(classes, 95)] = 10.0  # mangroves
+    heights[classes == NODATA] = NODATA
+    return heights
+
+
+def terminal_coast_distances_km(distances_km: np.ndarray, zones: np.ndarray) -> tuple[float, float]:
+    """Return P.1812 terminal-to-coast distances for zone codes 1, 3 and 4."""
+
+    if distances_km.ndim != 1 or zones.shape != distances_km.shape or distances_km.size < 2:
+        raise ValueError("radio-climate path must be a one-dimensional sampled profile")
+    if not np.all(np.isin(zones, (1, 3, 4))):
+        raise ValueError("radio-climate profile contains unsupported P.1812 zones")
+
+    def from_terminal(reverse: bool) -> float:
+        path_zones = zones[::-1] if reverse else zones
+        path_distances = distances_km[-1] - distances_km[::-1] if reverse else distances_km
+        if path_zones[0] == 1:
+            return 0.0
+        sea = np.flatnonzero(path_zones == 1)
+        if sea.size == 0:
+            return 500.0
+        first = int(sea[0])
+        if first == 0:
+            return 0.0
+        return float((path_distances[first - 1] + path_distances[first]) / 2.0)
+
+    return from_terminal(False), from_terminal(True)
 
 
 def _apple_performance_cores() -> int | None:
@@ -99,7 +144,7 @@ def _init_worker(state: dict[str, Any]) -> None:
     global _STATE
     _STATE = dict(state)
     _STATE["_shared_handles"] = []
-    for key in ("terrain", "zones"):
+    for key in ("terrain", "clutter", "zones"):
         descriptor = _STATE.pop(f"{key}_shared", None)
         if descriptor is None:
             continue
@@ -109,6 +154,18 @@ def _init_worker(state: dict[str, Any]) -> None:
             tuple(descriptor["shape"]), dtype=np.dtype(descriptor["dtype"]), buffer=handle.buf
         )
     from Py1812 import P1812
+
+    itu_maps_path = _STATE.get("itu_digital_maps_path")
+    if itu_maps_path:
+        with np.load(str(itu_maps_path)) as archive:
+            maps = {name: archive[name].copy() for name in ("DN50", "N050")}
+        if any(
+            matrix.shape != (121, 241) or not np.all(np.isfinite(matrix))
+            for matrix in maps.values()
+        ):
+            raise RuntimeError("ITU digital maps have invalid shape or values")
+        P1812.DigitalMaps.clear()
+        P1812.DigitalMaps.update(maps)
 
     _STATE["p1812"] = P1812
 
@@ -127,6 +184,14 @@ def _ray(task: tuple[int, float]) -> tuple[int, np.ndarray]:
         ).astype("uint8")
         if not np.all(np.isin(zones, (1, 3, 4))):
             raise RuntimeError(f"invalid P.1812 radio-climatic zone on azimuth {azimuth:.3f}°")
+    if state["clutter"] is None:
+        clutter = np.zeros(terrain.shape, dtype="float64")
+    else:
+        clutter = sample_ray(
+            state["clutter"], state["transform"], azimuth, state["profile_m"], categorical=True
+        ).astype("float64")
+        if np.any(clutter == NODATA) or np.any(clutter < 0):
+            raise RuntimeError(f"clutter has invalid samples on azimuth {azimuth:.3f}°")
     radial_km = state["radial_km"]
     output = np.empty(radial_km.shape, dtype="float32")
     endpoint_indices = np.rint(radial_km * 1000 / state["profile_step_m"]).astype(int)
@@ -142,13 +207,16 @@ def _ray(task: tuple[int, float]) -> tuple[int, np.ndarray]:
         if distance < 0.25 or endpoint < 4:
             output[n] = p525_free_space_field_dbuv_m(state["erp_w"], max(distance, 0.001))
             continue
+        path_distances = state["profile_km"][: endpoint + 1]
+        path_zones = zones[: endpoint + 1]
+        dct_km, dcr_km = terminal_coast_distances_km(path_distances, path_zones)
         _, field = p1812.bt_loss(
             state["frequency_mhz"] / 1000,
             state["time_percent"],
-            state["profile_km"][: endpoint + 1],
+            path_distances,
             terrain[: endpoint + 1],
-            np.zeros(endpoint + 1, dtype="float64"),
-            zones[: endpoint + 1],
+            clutter[: endpoint + 1],
+            path_zones,
             state["tx_agl_m"],
             state["rx_agl_m"],
             state["polarization"],
@@ -158,6 +226,8 @@ def _ray(task: tuple[int, float]) -> tuple[int, np.ndarray]:
             float(receiver_lon[n]),
             pL=state["location_percent"],
             Ptx=state["erp_w"] / 1000,
+            dct=dct_km,
+            dcr=dcr_km,
         )
         output[n] = field
     return index, output
@@ -200,6 +270,56 @@ class Result:
     manifest: Path
 
 
+@dataclass(frozen=True)
+class BoundaryAssessment:
+    boundary_band_km: float
+    boundary_max_dbuv_m: float
+    guard_threshold_dbuv_m: float
+    open_at_boundary: bool
+    recommended_radius_km: float
+    range_cap_applied: bool
+
+
+def assess_service_boundary(
+    projected_field_geotiff: Path,
+    *,
+    radius_km: float,
+    guard_threshold_dbuv_m: float,
+    boundary_band_km: float = 5.0,
+    expansion_km: float = 20.0,
+    maximum_radius_km: float = 100.0,
+) -> BoundaryAssessment:
+    """Assess whether a modeled field remains open near its radial boundary."""
+
+    if not 0 < boundary_band_km < radius_km:
+        raise ValueError("boundary band must be positive and smaller than the radius")
+    if expansion_km <= 0 or maximum_radius_km < radius_km:
+        raise ValueError("domain expansion and maximum radius are inconsistent")
+    with rasterio.open(projected_field_geotiff) as source:
+        if source.crs is None or not source.crs.is_projected:
+            raise ValueError("boundary assessment requires a projected metric field raster")
+        field = source.read(1)
+        rows, columns = np.indices(field.shape, dtype="float64")
+        xs = source.transform.c + (columns + 0.5) * source.transform.a
+        ys = source.transform.f + (rows + 0.5) * source.transform.e
+        distance_km = np.hypot(xs, ys) / 1000.0
+        valid = np.isfinite(field) & (field != source.nodata)
+        boundary = valid & (distance_km >= radius_km - boundary_band_km)
+        if not np.any(boundary):
+            raise RuntimeError("field raster has no valid samples in its boundary band")
+        boundary_max = float(np.max(field[boundary]))
+    is_open = boundary_max >= guard_threshold_dbuv_m
+    next_radius = min(maximum_radius_km, radius_km + expansion_km) if is_open else radius_km
+    return BoundaryAssessment(
+        boundary_band_km=boundary_band_km,
+        boundary_max_dbuv_m=boundary_max,
+        guard_threshold_dbuv_m=guard_threshold_dbuv_m,
+        open_at_boundary=is_open,
+        recommended_radius_km=next_radius,
+        range_cap_applied=is_open and radius_km >= maximum_radius_km,
+    )
+
+
 def calculate(request: CalculationRequest) -> Result:
     request.output_directory.mkdir(parents=True, exist_ok=True)
     dem_provenance = [_file_provenance(path) for path in request.dem_paths]
@@ -223,6 +343,27 @@ def calculate(request: CalculationRequest) -> Result:
         request.radius_km,
         request.profile_step_m,
     )
+    clutter = None
+    clutter_provenance: list[dict[str, object]] = []
+    if request.clutter_paths:
+        clutter_classes, clutter_transform, clutter_crs = load_projected_grid(
+            request.clutter_paths,
+            request.station.latitude_deg,
+            request.station.longitude_deg,
+            request.radius_km,
+            request.profile_step_m,
+            categorical=True,
+        )
+        if clutter_transform != transform or clutter_crs != projected_crs:
+            raise RuntimeError("clutter and terrain grids are not co-registered")
+        clutter = (
+            worldcover_clutter_heights(clutter_classes)
+            if request.clutter_mode == "worldcover_classes"
+            else clutter_classes
+        )
+        if np.any((clutter != NODATA) & (clutter < 0)):
+            raise ValueError("clutter heights must not be negative")
+        clutter_provenance = [_file_provenance(path) for path in request.clutter_paths]
     zones = None
     if request.radio_climate_path:
         zones, zone_transform, _ = load_projected_grid(
@@ -248,6 +389,7 @@ def calculate(request: CalculationRequest) -> Result:
     azimuths = np.linspace(0, 360, ray_count, endpoint=False)
     state = {
         "terrain": terrain,
+        "clutter": clutter,
         "zones": zones,
         "transform": transform,
         "profile_km": profile_km,
@@ -263,6 +405,9 @@ def calculate(request: CalculationRequest) -> Result:
         "polarization": 1 if request.station.polarization == "horizontal" else 2,
         "time_percent": request.time_percent,
         "location_percent": request.location_percent,
+        "itu_digital_maps_path": (
+            str(request.itu_digital_maps_path) if request.itu_digital_maps_path else None
+        ),
     }
     polar = np.empty((ray_count, radial_km.size), dtype="float32")
     workers = worker_count(request.workers, ray_count)
@@ -278,7 +423,7 @@ def calculate(request: CalculationRequest) -> Result:
         # Both macOS and Windows use spawn. Share immutable grids instead of
         # serializing one private raster copy per worker.
         if context.get_start_method() == "spawn":
-            for key in ("terrain", "zones"):
+            for key in ("terrain", "clutter", "zones"):
                 if worker_state[key] is None:
                     continue
                 descriptor, handle = _share(worker_state[key])
@@ -369,6 +514,13 @@ def calculate(request: CalculationRequest) -> Result:
         )
     valid = field[field != NODATA]
     geographic_bounds = rasterio.transform.array_bounds(height, width, dst_transform)
+    boundary = assess_service_boundary(
+        projected_path,
+        radius_km=request.radius_km,
+        guard_threshold_dbuv_m=17.0,
+        boundary_band_km=min(5.0, request.radius_km / 2.0),
+        maximum_radius_km=100.0,
+    )
     manifest = request.output_directory / "manifest.json"
     manifest.write_text(
         json.dumps(
@@ -389,6 +541,14 @@ def calculate(request: CalculationRequest) -> Result:
                 "rays": ray_count,
                 "workers": workers,
                 "raster_backend": raster_backend,
+                "boundary_assessment": {
+                    "boundary_band_km": boundary.boundary_band_km,
+                    "boundary_max_dbuv_m": boundary.boundary_max_dbuv_m,
+                    "guard_threshold_dbuv_m": boundary.guard_threshold_dbuv_m,
+                    "open_at_boundary": boundary.open_at_boundary,
+                    "recommended_radius_km": boundary.recommended_radius_km,
+                    "range_cap_applied": boundary.range_cap_applied,
+                },
                 "field_min_dbuv_m": float(valid.min()),
                 "field_max_dbuv_m": float(valid.max()),
                 "bounds_wgs84": list(geographic_bounds),
@@ -398,7 +558,28 @@ def calculate(request: CalculationRequest) -> Result:
                     "location_percent": request.location_percent,
                 },
                 "terrain_inputs": dem_provenance,
+                "clutter": {
+                    "mode": request.clutter_mode if request.clutter_paths else "none",
+                    "inputs": clutter_provenance,
+                    "representative_height_mapping_m": {
+                        "tree_cover": 15,
+                        "shrubland": 3,
+                        "built_up": 15,
+                        "herbaceous_wetland": 1,
+                        "mangroves": 10,
+                    }
+                    if request.clutter_paths and request.clutter_mode == "worldcover_classes"
+                    else None,
+                },
                 "radio_climate": radio_climate,
+                "itu_digital_maps": (
+                    _binary_file_provenance(request.itu_digital_maps_path)
+                    if request.itu_digital_maps_path
+                    else {
+                        "mode": "package-default",
+                        "warning": "Use a checksummed explicit map archive for production runs.",
+                    }
+                ),
                 "raster": {
                     "crs": destination_crs,
                     "nodata": NODATA,
@@ -409,7 +590,11 @@ def calculate(request: CalculationRequest) -> Result:
                     "maximum_distance_km": 0.25,
                 },
                 "assumptions": {
-                    "clutter": "zero representative clutter height",
+                    "clutter": (
+                        "explicit raster"
+                        if request.clutter_paths
+                        else "zero representative clutter height"
+                    ),
                     "default_erp_w": 12.0,
                     "power_assumed": request.station.power_assumed,
                 },
