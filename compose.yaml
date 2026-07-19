@@ -14,6 +14,8 @@ services:
       FIELD_STRENGTH_CORS_ORIGINS: ${FIELD_STRENGTH_CORS_ORIGINS:-http://localhost:3000}
       FIELD_STRENGTH_DEMO_ROOT: /app/demo
       FIELD_STRENGTH_DATABASE: /database/stations.sqlite3
+      FIELD_STRENGTH_SEED_STATIONS: /app/examples/stations.json
+      FIELD_STRENGTH_DEM_CACHE: /cache/dem
       FIELD_STRENGTH_ADMIN_API_KEY: ${FIELD_STRENGTH_ADMIN_API_KEY:-change-me-before-public-use}
       ITU_AUTO_DOWNLOAD: "1"
       COVERAGE_WORKERS: ${COVERAGE_WORKERS:-auto}

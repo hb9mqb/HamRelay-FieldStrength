@@ -27,6 +27,7 @@ from .database import (
     get_station,
     list_stations,
     register_coverage,
+    seed_from_file,
     upsert_station,
 )
 from .database import (
@@ -66,6 +67,9 @@ if _cors_origins:
 _JOBS: dict[str, dict[str, object]] = {}
 _JOBS_LOCK = threading.Lock()
 initialize_database()
+_seed_path = os.environ.get("FIELD_STRENGTH_SEED_STATIONS")
+if _seed_path:
+    seed_from_file(Path(_seed_path))
 
 
 class AnalysisRequest(BaseModel):
@@ -209,11 +213,14 @@ def _run_analysis(job_id: str, request: AnalysisRequest) -> None:
         dem_paths = _expand_dem_paths(entry)
         acquisition = None
         if entry.get("auto_provider") == "copernicus-glo30-aws":
+            cache_directory = os.environ.get("FIELD_STRENGTH_DEM_CACHE") or str(
+                entry.get("cache_directory", "/cache/dem")
+            )
             dem_paths, acquisition = acquire_copernicus_dem(
                 station.latitude_deg,
                 station.longitude_deg,
                 request.radius_km,
-                Path(str(entry.get("cache_directory", "/cache/dem"))),
+                Path(cache_directory),
             )
         if not dem_paths:
             raise ValueError(f"DEM dataset resolved to no files: {selected_dataset_id}")

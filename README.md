@@ -129,6 +129,9 @@ workflow in one screen: station filters and editing, radius and terrain mode,
 calculation status, transparent or background-rendered GeoTIFF selection,
 individual or strongest-field composite overlays, opacity, the 0–50 dBµV/m
 threshold, absolute legend, pointer field/S-meter inspection, and downloads.
+The fresh Docker database is seeded with the real HB9ZG Rigi-Scheidegg example
+from [examples/stations.json](examples/stations.json). Seed records are inserted
+only when their station ID is absent, so later starts never replace edited data.
 
 The compose file uses the downloadable multi-architecture image
 `ghcr.io/coderplus007/hamrelay-field-strength:latest` when published; add

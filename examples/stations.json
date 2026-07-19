@@ -1,0 +1,27 @@
+[
+  {
+    "station_id": "HB9ZG",
+    "name": "Rigi-Scheidegg example repeater",
+    "latitude_deg": 47.0275,
+    "longitude_deg": 8.5195833333,
+    "coordinates_locked": true,
+    "coordinate_source": "author-provided, manually verified example",
+    "coordinate_precision_m": 10,
+    "country_code": "CH",
+    "locality": "Rigi-Scheidegg",
+    "site_elevation_m": 1655,
+    "antenna_height_agl_m": 20,
+    "tx_frequency_mhz": 439.5375,
+    "rx_frequency_mhz": 431.9375,
+    "mode": "DMR",
+    "band": "70cm",
+    "polarization": "vertical",
+    "erp_w": 25,
+    "status": "active",
+    "source": "author-provided public integration example",
+    "extra": {
+      "purpose": "real-station demonstration record",
+      "verify_before_operational_use": true
+    }
+  }
+]

@@ -92,6 +92,21 @@ def initialize() -> None:
         connection.executescript(SCHEMA)
 
 
+def seed_from_file(path: Path) -> int:
+    """Insert example records only when their station IDs do not yet exist."""
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, list):
+        raise ValueError("station seed file must contain a JSON array")
+    inserted = 0
+    for item in payload:
+        record = StationRecord.model_validate(item)
+        if get_station(record.station_id) is None:
+            upsert_station(record)
+            inserted += 1
+    return inserted
+
+
 @contextmanager
 def connect() -> Iterator[sqlite3.Connection]:
     connection = sqlite3.connect(DATABASE_PATH, timeout=30)

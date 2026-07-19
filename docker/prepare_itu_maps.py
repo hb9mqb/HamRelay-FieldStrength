@@ -12,8 +12,8 @@ from pathlib import Path
 
 import numpy as np
 
-TARGET = Path("/opt/py1812-runtime/Py1812")
-MANUAL = Path("/itu")
+TARGET = Path(os.environ.get("PY1812_RUNTIME_TARGET", "/opt/py1812-runtime/Py1812"))
+MANUAL = Path(os.environ.get("ITU_MAP_DIRECTORY", "/itu"))
 FILENAMES = ("DN50.TXT", "N050.TXT")
 OFFICIAL_URL = os.environ.get(
     "ITU_P1812_ZIP_URL",
@@ -47,6 +47,7 @@ def _official_files() -> dict[str, bytes]:
 
 
 def main() -> None:
+    TARGET.mkdir(parents=True, exist_ok=True)
     target = TARGET / "P1812.npz"
     if target.is_file():
         return

@@ -18,6 +18,7 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 COPY demo ./demo
+COPY examples ./examples
 RUN pip install --upgrade pip \
     && pip install . \
     && mkdir -p /opt/py1812-runtime \
