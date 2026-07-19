@@ -1,6 +1,6 @@
 import pytest
 
-from hamrelay_field_strength.propagation import p525_free_space_field_dbuv_m
+from hamrelay_field_strength.propagation import p525_free_space_field_dbuv_m, process_start_method
 from hamrelay_field_strength.smeter import field_to_receiver_dbm, receiver_dbm_to_s_meter
 
 
@@ -25,3 +25,12 @@ def test_iaru_nominal_s_units() -> None:
     assert receiver_dbm_to_s_meter(-99, 145) == "S8"
     assert receiver_dbm_to_s_meter(-87, 145) == "S9+6 dB"
     assert receiver_dbm_to_s_meter(-73, 14.2) == "S9"
+
+
+@pytest.mark.parametrize(
+    ("system", "expected"),
+    [("Darwin", "spawn"), ("Windows", "spawn"), ("Linux", "fork")],
+)
+def test_platform_process_start_method(monkeypatch, system: str, expected: str) -> None:
+    monkeypatch.setattr("hamrelay_field_strength.propagation.platform.system", lambda: system)
+    assert process_start_method() == expected

@@ -1,0 +1,120 @@
+name: Bug report
+description: Report reproducible incorrect behavior in the engine, API, demo, or integrations
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve HamRelay Field Strength. A small, reproducible
+        example is the fastest route to a reliable fix. This form is public: remove
+        credentials, private station data, personal location traces, and licensed
+        terrain or propagation datasets before submitting it.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - Propagation or field-strength engine
+        - Terrain/DTM acquisition and processing
+        - HTTP API or station registry
+        - GeoTIFF or web-tile output
+        - Street-map demo application
+        - Browser integration package
+        - Docker image or Compose deployment
+        - Documentation or scientific paper
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Use a release tag, container tag/digest, or full commit SHA.
+      placeholder: v0.1.0 or 0123456789abcdef...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options:
+        - Docker Compose
+        - Docker image
+        - Native Python package
+        - Source checkout
+        - Browser package only
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS/version, CPU architecture, Python and browser versions, and whether Metal/MLX was enabled.
+      placeholder: |
+        OS: macOS 26.x
+        Architecture: arm64
+        Python: 3.13.x
+        Browser: Firefox ...
+        Acceleration: Metal/MLX enabled
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: List exact commands or API calls and the smallest non-sensitive input that reproduces the problem.
+      placeholder: |
+        1. Start the service with ...
+        2. Submit this request (remove API keys) ...
+        3. Open ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: State what happened. Include numerical values, units, error messages, or a screenshot where useful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: State what you expected and the basis for that expectation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: model_inputs
+    attributes:
+      label: Relevant model inputs
+      description: For calculation defects, include frequency, ERP, antenna heights, radius, DEM source/resolution, ray count, grid spacing, and output mode. Redact the station location if necessary.
+      placeholder: Not applicable, or a concise list of inputs and units
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or response payload
+      description: Paste the smallest relevant excerpt. Do not include secrets or private data.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I removed credentials, private data, and material I cannot redistribute.
+          required: true
+        - label: I understand that a propagation-result disagreement requiring scientific evaluation belongs in the scientific validation form.
+          required: true
+

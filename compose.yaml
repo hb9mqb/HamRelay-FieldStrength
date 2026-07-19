@@ -18,7 +18,7 @@ services:
       FIELD_STRENGTH_DEM_CACHE: /cache/dem
       FIELD_STRENGTH_ADMIN_API_KEY: ${FIELD_STRENGTH_ADMIN_API_KEY:-change-me-before-public-use}
       ITU_AUTO_DOWNLOAD: "1"
-      COVERAGE_WORKERS: ${COVERAGE_WORKERS:-auto}
+      FIELD_STRENGTH_WORKERS: ${FIELD_STRENGTH_WORKERS:-auto}
     volumes:
       - ./runtime/artifacts:/artifacts
       - ./runtime/dem:/data/dem:ro

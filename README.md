@@ -3,6 +3,8 @@
 [![CI](https://github.com/coderplus007/HamRelay-FieldStrength/actions/workflows/ci.yml/badge.svg)](https://github.com/coderplus007/HamRelay-FieldStrength/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Model: ITU--R P.1812--8](https://img.shields.io/badge/model-ITU--R%20P.1812--8-0050a4)](https://www.itu.int/rec/R-REC-P.1812/en)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab)](pyproject.toml)
+[![Container](https://img.shields.io/badge/container-amd64%20%7C%20arm64-2496ed)](docs/DEPLOYMENT.md)
 
 Reproducible, terrain-aware repeater field-strength maps with an embedded
 station registry, a complete Leaflet street-map demo, numerical web tiles,
@@ -12,11 +14,33 @@ receiver assumptions. The primary result is always an electric field strength in
 
 Author: **Beat W. Meier, HB9MQB**
 
+**[Quick start](#quick-start) · [Live API contract](docs/API.md) ·
+[Demo guide](docs/DEMO.md) · [Integration](docs/INTEGRATION.md) ·
+[Scientific paper](paper/paper.pdf) · [Contribute](CONTRIBUTING.md)**
+
 > [!IMPORTANT]
 > This is a planning model. It does not guarantee communication. Buildings,
 > foliage, antenna patterns, polarization mismatch, feed-line loss, interference,
 > receiver implementation, weather, and short-term propagation can materially
 > change real reception.
+
+## Project status and scope
+
+Version 0.1.0 is ready to publish as a self-contained field-strength component.
+Its intentionally bounded scope is:
+
+- calculation of terrain-aware repeater fields in dBµV/m;
+- GeoTIFF, numeric tiles, colored overlays, and strongest-field composites;
+- reusable Leaflet/Cesium integration patterns and controls; and
+- geographic field sampling with an expected S-meter indication.
+
+It can be embedded as a pinned Python dependency or OCI container. A host
+application remains responsible for its own authoritative station database,
+source merging, authentication, durable scheduling, artifact-retention policy,
+and globe or map shell. Those are clean integration boundaries, not duplicated
+features. See [Host integration](docs/INTEGRATION.md) and the explicit
+[replacement-readiness contract](docs/REPLACEMENT-READINESS.md) before removing
+an existing implementation.
 
 ## Why this project exists
 
@@ -30,7 +54,8 @@ This project instead:
 - treats the first 250 m with the P.525 free-space expression because P.1812
   requires a sufficiently long terrain profile;
 - represents the result on one absolute, station-independent color scale;
-- publishes lossless numerical tiles in addition to rendered color tiles;
+- publishes stable 0.5 dB-quantized numerical tiles in addition to rendered
+  color tiles;
 - lets a browser change opacity and the 0–50 dBµV/m display threshold without
   pretending that the physics changed;
 - reports an expected S indication only after applying a stated idealized
@@ -127,7 +152,8 @@ Open <http://127.0.0.1:8765/demo/> for the interactive street-map demo or
 <http://127.0.0.1:8765/docs> for OpenAPI. The demo exposes the full reference
 workflow in one screen: station filters and editing, radius and terrain mode,
 calculation status, transparent or background-rendered GeoTIFF selection,
-individual or strongest-field composite overlays, opacity, the 0–50 dBµV/m
+one bounded layer containing either an individual or strongest-field composite
+overlay, opacity, the 0–50 dBµV/m
 threshold, absolute legend, pointer field/S-meter inspection, and downloads.
 The fresh Docker database is seeded with the real HB9ZG Rigi-Scheidegg example
 from [examples/stations.json](examples/stations.json). Seed records are inserted
@@ -281,6 +307,8 @@ surface model (not a bare-earth DTM), has approximately 30 m latitude spacing,
 and requires the attribution described in its Product Handbook. Higher-quality
 regional DTMs can be supplied without changing the calculation contract.
 See [DATA-SOURCES.md](docs/DATA-SOURCES.md).
+The release-level summary is in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Reproducibility and validation
 
@@ -293,6 +321,12 @@ distance. The repository intentionally distinguishes implementation conformance
 from empirical accuracy.
 
 ## Contributing
+
+This project is looking for radio engineers, propagation researchers, field
+measurement teams, GIS developers, performance specialists, web developers,
+technical writers, accessibility reviewers, and curious radio amateurs. A small
+reproducible validation case or a careful documentation correction can be as
+valuable as a large feature.
 
 Contributions are welcome, especially:
 
@@ -317,6 +351,10 @@ measured, reproducible compatibility claim.
 Read [CONTRIBUTING.md](CONTRIBUTING.md), open an issue before a large change,
 and keep physical assumptions explicit. A colorful result is not sufficient;
 new propagation behavior must be testable and scientifically referenced.
+
+The complete documentation map is in [docs/README.md](docs/README.md). Use
+[SUPPORT.md](SUPPORT.md) to choose the right issue form, and see the public
+[roadmap](docs/ROADMAP.md) for well-bounded contribution ideas.
 
 ## Citation
 

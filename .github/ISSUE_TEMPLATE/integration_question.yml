@@ -1,0 +1,65 @@
+name: Integration or usage question
+description: Ask a reproducible question about deployment, the API, demo, or browser integration
+title: "[Question]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Questions that can improve the public documentation are welcome. Please first
+        check the README, API documentation, demo guide, and existing issues. This is
+        a public form; never paste credentials or private station records.
+
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - Quick-start demo
+        - Docker or Docker Compose
+        - REST API
+        - Station registry
+        - DTM configuration
+        - GeoTIFF and tiles
+        - Browser/website integration
+        - Propagation inputs and outputs
+        - Development setup
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: What are you trying to accomplish?
+      description: Describe the practical result you want, not only the command that failed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What have you tried?
+      description: Include documentation sections, commands, sanitized API calls, and the observed result.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Relevant environment
+      description: Include installation method, version/commit, OS/architecture, and browser or Python version as applicable.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched the documentation and existing issues.
+          required: true
+        - label: I removed credentials, private data, and restricted datasets.
+          required: true
+        - label: I agree to follow the Code of Conduct.
+          required: true
+

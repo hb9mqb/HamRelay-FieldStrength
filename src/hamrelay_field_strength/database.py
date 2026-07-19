@@ -8,7 +8,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from .models import STATION_ID_PATTERN
 
 DATABASE_PATH = Path(
     os.environ.get("FIELD_STRENGTH_DATABASE", "database/stations.sqlite3")
@@ -33,6 +35,7 @@ CREATE TABLE IF NOT EXISTS stations (
     band TEXT,
     polarization TEXT NOT NULL DEFAULT 'vertical',
     erp_w REAL NOT NULL DEFAULT 12 CHECK(erp_w > 0),
+    power_assumed INTEGER NOT NULL DEFAULT 0 CHECK(power_assumed IN (0,1)),
     antenna_gain_dbi REAL,
     antenna_azimuth_deg REAL,
     antenna_beamwidth_deg REAL,
@@ -58,7 +61,7 @@ CREATE TABLE IF NOT EXISTS coverage_artifacts (
 
 
 class StationRecord(BaseModel):
-    station_id: str = Field(pattern=r"^[A-Za-z0-9_.:-]{1,80}$")
+    station_id: str = Field(pattern=STATION_ID_PATTERN)
     name: str | None = None
     latitude_deg: float = Field(ge=-80, le=80)
     longitude_deg: float = Field(ge=-180, le=180)
@@ -75,6 +78,7 @@ class StationRecord(BaseModel):
     band: str | None = None
     polarization: str = Field(default="vertical", pattern="^(horizontal|vertical)$")
     erp_w: float = Field(default=12, gt=0)
+    power_assumed: bool = False
     antenna_gain_dbi: float | None = None
     antenna_azimuth_deg: float | None = Field(default=None, ge=0, lt=360)
     antenna_beamwidth_deg: float | None = Field(default=None, gt=0, le=360)
@@ -85,11 +89,30 @@ class StationRecord(BaseModel):
     source_updated_at: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
 
+    @model_validator(mode="before")
+    @classmethod
+    def annotate_default_erp(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        if "erp_w" not in data or data["erp_w"] is None:
+            data["erp_w"] = 12.0
+            data["power_assumed"] = True
+        return data
+
 
 def initialize() -> None:
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with connect() as connection:
         connection.executescript(SCHEMA)
+        columns = {
+            str(row["name"]) for row in connection.execute("PRAGMA table_info(stations)").fetchall()
+        }
+        if "power_assumed" not in columns:
+            connection.execute(
+                "ALTER TABLE stations ADD COLUMN power_assumed INTEGER NOT NULL DEFAULT 0 "
+                "CHECK(power_assumed IN (0,1))"
+            )
 
 
 def seed_from_file(path: Path) -> int:
@@ -123,6 +146,7 @@ def connect() -> Iterator[sqlite3.Connection]:
 def _record(row: sqlite3.Row) -> dict[str, Any]:
     result = dict(row)
     result["coordinates_locked"] = bool(result["coordinates_locked"])
+    result["power_assumed"] = bool(result["power_assumed"])
     result["extra"] = json.loads(result.pop("extra_json"))
     return result
 
@@ -211,6 +235,7 @@ def ensure_station(
     antenna_height_agl_m: float,
     polarization: str,
     erp_w: float,
+    power_assumed: bool,
 ) -> None:
     """Insert a calculation-only station without overwriting richer registry data."""
 
@@ -218,8 +243,8 @@ def ensure_station(
         connection.execute(
             """INSERT OR IGNORE INTO stations(
                 station_id,latitude_deg,longitude_deg,tx_frequency_mhz,
-                antenna_height_agl_m,polarization,erp_w,source
-            ) VALUES(?,?,?,?,?,?,?,?)""",
+                antenna_height_agl_m,polarization,erp_w,power_assumed,source
+            ) VALUES(?,?,?,?,?,?,?,?,?)""",
             (
                 station_id,
                 latitude_deg,
@@ -228,6 +253,7 @@ def ensure_station(
                 antenna_height_agl_m,
                 polarization,
                 erp_w,
+                power_assumed,
                 "calculation API",
             ),
         )

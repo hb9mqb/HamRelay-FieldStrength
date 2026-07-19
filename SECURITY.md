@@ -1,8 +1,15 @@
 # Security policy
 
+## Supported versions
+
+Security fixes are applied to the latest released minor line. During the 0.x
+phase, users should upgrade to the newest patch release because compatibility
+may require coordinated fixes across the API, demo, and web package.
+
 ## Reporting
 
-Please use GitHub private vulnerability reporting rather than a public issue.
+Please use the repository's GitHub **Security → Report a vulnerability** form
+rather than a public issue.
 Include affected version, reproduction, impact and any proposed mitigation. Do
 not include production credentials, private station datasets or licensed DEMs.
 

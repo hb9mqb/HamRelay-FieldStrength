@@ -19,3 +19,4 @@ runtime/
 database/*.sqlite3
 database/*.sqlite3-*
 .env
+graphify-out/

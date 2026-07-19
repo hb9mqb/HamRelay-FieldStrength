@@ -1,5 +1,9 @@
 .git
 .github
+.DS_Store
+.env
+.env.*
+!.env.example
 .venv*
 .testdeps
 __pycache__
@@ -9,6 +13,10 @@ __pycache__
 .mypy_cache
 artifacts
 data
+database/*.sqlite3
+database/*.sqlite3-*
+dist
+graphify-out
 runtime
 paper/build
 paper/rendered

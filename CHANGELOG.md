@@ -19,11 +19,17 @@ Versioning.
   Copernicus DEM acquisition, batch sampling, composite layers, and capability
   discovery.
 - Leaflet street-map demo covering station import, filters, calculation jobs,
-  individual and strongest-field composite overlays, display controls, S-meter
-  inspection, and GeoTIFF downloads.
+  a single owned individual-or-composite overlay layer, calculation animation,
+  display controls, S-meter pointer popup, and GeoTIFF downloads.
 - Both Cesium geographic and standard Web Mercator overlay tile endpoints.
 - Cesium overlay controller, opacity and 0–50 dBµV/m threshold sliders, legend,
   and expected S-meter cursor sampling.
 - English scientific paper, API/model/data/validation documentation and MIT
   licensing.
 - Experimental, currently untested Windows spawn/shared-memory path and CI job.
+- Architecture, deployment, host-integration, replacement-readiness,
+  troubleshooting, practical-application, demo, roadmap, release, and support
+  documentation.
+- Structured GitHub issue forms, pull-request template, dependency updates,
+  release-note categories, multi-platform CI, and multi-architecture container
+  publication with SBOM and provenance.

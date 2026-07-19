@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import multiprocessing
@@ -10,7 +11,7 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from multiprocessing import shared_memory
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import rasterio
@@ -26,6 +27,31 @@ IMPLEMENTATION_ID = "Py1812-a5205e6"
 ALGORITHM_VERSION = "field-strength-v1"
 GEOD = Geod(ellps="WGS84")
 _STATE: dict[str, Any] = {}
+
+
+def _file_provenance(path: Path) -> dict[str, object]:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    result: dict[str, object] = {
+        "filename": path.name,
+        "bytes": path.stat().st_size,
+        "sha256": digest.hexdigest(),
+    }
+    with rasterio.open(path) as dataset:
+        tags = dataset.tags()
+        result["raster"] = {
+            "crs": str(dataset.crs),
+            "width": dataset.width,
+            "height": dataset.height,
+            "dtype": dataset.dtypes[0],
+            "nodata": dataset.nodata,
+            "pixel_size_crs_units": [abs(dataset.transform.a), abs(dataset.transform.e)],
+            "bounds": list(dataset.bounds),
+            "vertical_datum": tags.get("VERTICAL_DATUM", "unspecified"),
+        }
+    return result
 
 
 def p525_free_space_field_dbuv_m(erp_w: float, distance_km: float) -> float:
@@ -59,6 +85,12 @@ def worker_count(requested: int | str, tasks: int) -> int:
         else (os.cpu_count() or 2) - 2
     )
     return min(max(1, available), tasks)
+
+
+def process_start_method() -> Literal["spawn", "fork"]:
+    """Use spawn where fork is unavailable or unsafe with platform frameworks."""
+
+    return "spawn" if platform.system() in {"Darwin", "Windows"} else "fork"
 
 
 def _init_worker(state: dict[str, Any]) -> None:
@@ -170,6 +202,20 @@ class Result:
 
 def calculate(request: CalculationRequest) -> Result:
     request.output_directory.mkdir(parents=True, exist_ok=True)
+    dem_provenance = [_file_provenance(path) for path in request.dem_paths]
+    radio_climate = (
+        {
+            "mode": "raster",
+            "zone_codes": [1, 3, 4],
+            "input": _file_provenance(request.radio_climate_path),
+        }
+        if request.radio_climate_path
+        else {
+            "mode": "assumed-inland",
+            "zone_code": 4,
+            "warning": "Not suitable for defensible coastal predictions.",
+        }
+    )
     terrain, transform, projected_crs = load_projected_grid(
         request.dem_paths,
         request.station.latitude_deg,
@@ -220,7 +266,7 @@ def calculate(request: CalculationRequest) -> Result:
     }
     polar = np.empty((ray_count, radial_km.size), dtype="float32")
     workers = worker_count(request.workers, ray_count)
-    context = multiprocessing.get_context("spawn" if platform.system() == "Darwin" else "fork")
+    context = multiprocessing.get_context(process_start_method())
     if workers == 1:
         _init_worker(state)
         results = map(_ray, enumerate(azimuths))
@@ -333,19 +379,39 @@ def calculate(request: CalculationRequest) -> Result:
                 "implementation": IMPLEMENTATION_ID,
                 "algorithm": ALGORITHM_VERSION,
                 "units": "dBµV/m",
+                "published_outputs": ["geotiff"],
                 "radius_km": request.radius_km,
                 "profile_step_m": request.profile_step_m,
                 "radial_step_m": request.radial_step_m,
                 "output_resolution_m": request.output_resolution_m,
+                "minimum_rays": request.minimum_rays,
+                "outer_arc_spacing_m": request.outer_arc_spacing_m,
                 "rays": ray_count,
                 "workers": workers,
                 "raster_backend": raster_backend,
                 "field_min_dbuv_m": float(valid.min()),
                 "field_max_dbuv_m": float(valid.max()),
                 "bounds_wgs84": list(geographic_bounds),
+                "receiver": {
+                    "height_agl_m": request.receiver_height_agl_m,
+                    "time_percent": request.time_percent,
+                    "location_percent": request.location_percent,
+                },
+                "terrain_inputs": dem_provenance,
+                "radio_climate": radio_climate,
+                "raster": {
+                    "crs": destination_crs,
+                    "nodata": NODATA,
+                    "interpolation": "bilinear polar and geographic reprojection",
+                },
+                "near_field": {
+                    "method": "ITU-R P.525 free-space field",
+                    "maximum_distance_km": 0.25,
+                },
                 "assumptions": {
                     "clutter": "zero representative clutter height",
                     "default_erp_w": 12.0,
+                    "power_assumed": request.station.power_assumed,
                 },
             },
             indent=2,

@@ -10,12 +10,30 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Beat W. Meier" }]
-keywords = ["radio-propagation", "ITU-R P.1812", "field-strength", "GIS", "amateur-radio"]
+keywords = [
+  "amateur-radio",
+  "cesium",
+  "field-strength",
+  "geotiff",
+  "gis",
+  "itu-r-p1812",
+  "leaflet",
+  "radio-propagation",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
   "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Communications :: Ham Radio",
   "Topic :: Scientific/Engineering :: GIS",
+  "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
   "numpy>=2.1,<3",
@@ -39,6 +57,7 @@ hamrelay-field-strength = "hamrelay_field_strength.cli:main"
 Documentation = "https://github.com/coderplus007/HamRelay-FieldStrength#readme"
 Issues = "https://github.com/coderplus007/HamRelay-FieldStrength/issues"
 Source = "https://github.com/coderplus007/HamRelay-FieldStrength"
+Changelog = "https://github.com/coderplus007/HamRelay-FieldStrength/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hamrelay_field_strength"]

@@ -5,7 +5,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PATH=/opt/venv/bin:$PATH \
-    PYTHONPATH=/opt/py1812-runtime:/app/src
+    PYTHONPATH=/opt/py1812-runtime:/app/src \
+    FIELD_STRENGTH_ARTIFACT_ROOT=/artifacts \
+    FIELD_STRENGTH_DATABASE=/database/stations.sqlite3 \
+    FIELD_STRENGTH_DEMO_ROOT=/app/demo \
+    FIELD_STRENGTH_DEM_CACHE=/cache/dem \
+    FIELD_STRENGTH_DEM_CATALOG=/app/config/dem-catalog.json \
+    FIELD_STRENGTH_BASEMAP_CATALOG=/app/config/basemap-catalog.json \
+    FIELD_STRENGTH_SEED_STATIONS=/app/examples/stations.json \
+    ITU_AUTO_DOWNLOAD=1
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends libexpat1 \
@@ -19,6 +27,7 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 COPY demo ./demo
 COPY examples ./examples
+COPY config ./config
 RUN pip install --upgrade pip \
     && pip install . \
     && mkdir -p /opt/py1812-runtime \

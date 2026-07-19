@@ -1,0 +1,100 @@
+name: Feature request
+description: Propose a focused improvement to the engine, API, demo, or integrations
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Useful ideas, implementation proposals, and contributors are welcome. For a
+        substantial change, describing the use case and scientific contract before
+        writing code helps the project reach a sound design together.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Propagation or field-strength model
+        - Validation and measurement tooling
+        - Terrain/DTM support
+        - API and data model
+        - GeoTIFF, tiles, or browser integration
+        - Demo application and usability
+        - Performance, Metal, or another compute backend
+        - Windows or another operating system
+        - Docker and deployment
+        - Documentation, examples, or scientific paper
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Practical problem or research need
+      description: Explain who needs this, what they are trying to accomplish, and why the current behavior is insufficient.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the user-visible behavior, inputs, outputs, units, limits, and failure modes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example workflow or API shape
+      description: A short request/response, command, UI flow, or pseudocode example makes the proposal easier to evaluate.
+      render: shell
+
+  - type: textarea
+    id: scientific_contract
+    attributes:
+      label: Scientific and compatibility considerations
+      description: Identify applicable standards or papers, assumptions, uncertainty, API/schema changes, and backward-compatibility concerns. Write "None identified" if not applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Briefly explain other approaches or workarounds and their trade-offs.
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Would you like to help implement or validate it?
+      options:
+        - Yes, I can contribute code
+        - Yes, I can contribute measurements or validation
+        - Yes, I can contribute documentation or review
+        - Possibly, after design guidance
+        - No, I am reporting a need
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        Substantial, high-quality intellectual contributions to the research may be
+        considered for co-authorship under the transparent criteria in
+        [CONTRIBUTING.md](https://github.com/coderplus007/HamRelay-FieldStrength/blob/main/CONTRIBUTING.md).
+        Authorship is never based on commit count and is not promised by opening an issue.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues and documentation for this capability.
+          required: true
+        - label: I have not included secrets, private datasets, or material I cannot redistribute.
+          required: true
+        - label: I agree to follow the Code of Conduct when participating in this discussion.
+          required: true
+

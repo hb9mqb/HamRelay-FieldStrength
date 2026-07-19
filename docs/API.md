@@ -29,6 +29,9 @@ Authenticated writes use `X-API-Key`, whose server value is configured by
 The schema stores coordinates and provenance, a manual coordinate lock, site
 and antenna heights, TX/RX frequencies, ERP, polarization, optional antenna
 pattern parameters, mode, band, status, source metadata, and extensible JSON.
+When ERP is omitted, the validated record stores 12 W together with
+`power_assumed=true`; an explicit source ERP keeps `power_assumed=false` unless
+the source deliberately marks it assumed.
 Once `coordinates_locked` is true, later imports preserve coordinates,
 coordinate source, and precision. Other technical values remain updateable.
 
@@ -41,8 +44,9 @@ FIELD_STRENGTH_ARTIFACT_ROOT/
     └── field-strength.tif
 ```
 
-`station_id` accepts alphanumerics, `_`, and `-`. Traversal and absolute paths
-are rejected.
+`station_id` is 1–80 characters, begins and ends with an ASCII alphanumeric,
+and may contain internal alphanumerics, `_`, `.`, and `-`. Dot segments,
+traversal, absolute paths, and artifact-root escapes are rejected.
 
 ## Endpoints
 
@@ -77,7 +81,10 @@ AGL antenna height, and polarization. For automatic selection use
 `"terrain_mode":"auto"` and omit `dem_dataset_id`. The reference deployment
 downloads required Copernicus GLO-30 tiles into its persistent cache and falls
 back per tile to GLO-90 when necessary. The manifest records requested mode,
-selected dataset, acquisition provenance, and checksums.
+selected dataset, exact DEM filenames/sizes/SHA-256 checksums, acquisition
+provenance, radio-climate raster provenance or the explicit inland-only
+assumption, receiver height, statistical percentages, angular/radial sampling,
+and the near-field method.
 
 `FIELD_STRENGTH_DEM_CATALOG` points to a server-side JSON object whose entries
 contain bounds, resolution, priority, source, `dem_paths`, and optionally
@@ -106,7 +113,7 @@ Returns `{"status":"ok"}`. It does not assert that every artifact is present.
 
 ### `GET /v1/coverage/{station_id}/manifest`
 
-Returns immutable provenance, station inputs, physical units, sample spacing,
+Returns recorded provenance, station inputs, physical units, sample spacing,
 field range, model revision, and declared assumptions. A missing artifact is
 `404`.
 
@@ -156,9 +163,12 @@ north to south). Query parameter:
 - `minimum_field_strength_dbuv_m`: float from 0 to 50, default 5. Pixels below
   it are transparent. The stored field is unchanged.
 
-Response `204` means no calculated pixels intersect the tile. Dynamic color
-tiles use `Cache-Control: public, max-age=3600` because the threshold is part of
-the cache key.
+Response `204` means no calculated pixels intersect the tile. Standalone
+station-ID tile URLs identify the current artifact and therefore use `no-store`
+so a recalculation is visible immediately. A production host should publish
+content-versioned URLs before applying long-lived cache headers.
+Tile routes accept zoom levels 0–18 and reject negative or scheme-invalid X/Y
+coordinates before raster work begins.
 
 ### `GET /v1/coverage/{station_id}/web-tiles/{z}/{x}/{y}.png`
 
@@ -184,9 +194,11 @@ Returns a single-channel PNG. Zero is NoData. Values 1–255 decode as:
 E[dBµV/m] = -20 + (value - 1) × 0.5
 ```
 
-Numerical tiles are immutable for a given artifact version and carry a one-year
-cache directive. Clients should use them for composites and local cursor
-sampling when network latency matters.
+The standalone endpoint identifies the current artifact by station ID and uses
+`no-store` because a successful recalculation replaces that current artifact. A
+production host may map the same bytes to immutable, content-versioned URLs.
+Clients can use numerical tiles for composites and local cursor sampling when
+network latency matters.
 
 ### `GET /v1/coverage/{station_id}/sample`
 

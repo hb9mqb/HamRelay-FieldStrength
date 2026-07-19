@@ -12,7 +12,31 @@ def station() -> Station:
 
 
 def test_erp_defaults_to_twelve_watts() -> None:
-    assert station().erp_w == 12.0
+    record = station()
+    assert record.erp_w == 12.0
+    assert record.power_assumed is True
+
+
+def test_explicit_erp_is_not_marked_assumed() -> None:
+    record = Station(
+        id="TEST-ACTUAL",
+        latitude_deg=46.8,
+        longitude_deg=8.2,
+        frequency_mhz=439.5,
+        erp_w=12,
+    )
+    assert record.power_assumed is False
+
+
+@pytest.mark.parametrize("station_id", [".", "..", "-station", "station-"])
+def test_station_id_cannot_be_a_path_segment(station_id: str) -> None:
+    with pytest.raises(ValidationError):
+        Station(
+            id=station_id,
+            latitude_deg=46.8,
+            longitude_deg=8.2,
+            frequency_mhz=439.5,
+        )
 
 
 def test_analysis_radius_is_capped() -> None:
@@ -59,3 +83,15 @@ def test_missing_dem_is_rejected(tmp_path: Path) -> None:
         CalculationRequest(
             station=station(), dem_paths=[tmp_path / "missing.tif"], output_directory=tmp_path
         )
+
+
+def test_workers_are_bounded(tmp_path: Path) -> None:
+    dem = tmp_path / "dem.tif"
+    dem.touch()
+    request = CalculationRequest(
+        station=station(), dem_paths=[dem], output_directory=tmp_path, workers=4
+    )
+    assert request.workers == 4
+
+    with pytest.raises(ValidationError):
+        CalculationRequest(station=station(), dem_paths=[dem], output_directory=tmp_path, workers=0)

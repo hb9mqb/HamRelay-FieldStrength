@@ -14,7 +14,18 @@ from typing import Literal
 
 import numpy as np
 import rasterio
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Query, Response, status
+from fastapi import (
+    BackgroundTasks,
+    FastAPI,
+    Header,
+    HTTPException,
+    Query,
+    Response,
+    status,
+)
+from fastapi import (
+    Path as ApiPath,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,14 +44,20 @@ from .database import (
 from .database import (
     initialize as initialize_database,
 )
-from .models import CalculationRequest, Station
+from .models import STATION_ID_PATTERN, CalculationRequest, Station
 from .palette import PALETTE_ID, PALETTE_STOPS, rgba_lut
 from .propagation import calculate
 from .rendered_geotiff import render_visual_geotiff
 from .smeter import FieldSample
 from .terrain import geographic_bbox
 from .terrain_sources import acquire_copernicus_dem
-from .tiles import render_tile, render_web_mercator_tile, write_pyramid
+from .tiles import (
+    geographic_tile_bounds,
+    render_tile,
+    render_web_mercator_tile,
+    web_mercator_tile_bounds,
+    write_pyramid,
+)
 
 ARTIFACT_ROOT = Path(os.environ.get("FIELD_STRENGTH_ARTIFACT_ROOT", "artifacts")).resolve()
 app = FastAPI(
@@ -80,7 +97,7 @@ class AnalysisRequest(BaseModel):
     """Safe HTTP calculation inputs; server-side dataset IDs replace paths."""
 
     station: Station | None = None
-    station_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.:-]{1,80}$")
+    station_id: str | None = Field(default=None, pattern=STATION_ID_PATTERN)
     terrain_mode: Literal["dataset", "auto"] = "auto"
     dem_dataset_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.:-]{1,80}$")
     radius_km: float = Field(default=100.0, gt=0.25, le=100.0)
@@ -113,6 +130,21 @@ class BatchSampleRequest(BaseModel):
 
 def _calculation_enabled() -> bool:
     return os.environ.get("FIELD_STRENGTH_ENABLE_CALCULATIONS", "").lower() in {"1", "true", "yes"}
+
+
+def _configured_workers() -> int | Literal["auto"]:
+    """Return the operator-controlled worker count; HTTP clients cannot set it."""
+
+    raw = os.environ.get("FIELD_STRENGTH_WORKERS", "auto")
+    if raw == "auto":
+        return "auto"
+    try:
+        workers = int(raw)
+    except ValueError as error:
+        raise ValueError("FIELD_STRENGTH_WORKERS must be 'auto' or an integer") from error
+    if not 1 <= workers <= 256:
+        raise ValueError("FIELD_STRENGTH_WORKERS must be between 1 and 256")
+    return workers
 
 
 def _dem_catalog() -> dict[str, dict[str, object]]:
@@ -194,6 +226,7 @@ def _analysis_station(request: AnalysisRequest) -> Station:
         longitude_deg=record["longitude_deg"],
         frequency_mhz=record["tx_frequency_mhz"],
         erp_w=record["erp_w"],
+        power_assumed=record["power_assumed"],
         antenna_height_agl_m=record["antenna_height_agl_m"],
         polarization=record["polarization"],
     )
@@ -210,6 +243,7 @@ def _run_analysis(job_id: str, request: AnalysisRequest) -> None:
             station.antenna_height_agl_m,
             station.polarization,
             station.erp_w,
+            station.power_assumed,
         )
         selected_dataset_id, entry = _select_dem(request, _dem_catalog())
         if not isinstance(entry.get("dem_paths"), list):
@@ -228,14 +262,18 @@ def _run_analysis(job_id: str, request: AnalysisRequest) -> None:
             )
         if not dem_paths:
             raise ValueError(f"DEM dataset resolved to no files: {selected_dataset_id}")
+        output_directory = (ARTIFACT_ROOT / station.id).resolve()
+        if ARTIFACT_ROOT not in output_directory.parents:
+            raise ValueError("station artifact directory escapes the configured root")
         calculation = CalculationRequest(
             station=station,
             dem_paths=dem_paths,
             radio_climate_path=Path(str(entry["radio_climate_path"]))
             if entry.get("radio_climate_path")
             else None,
-            output_directory=ARTIFACT_ROOT / station.id,
+            output_directory=output_directory,
             radius_km=request.radius_km,
+            workers=_configured_workers(),
         )
         result = calculate(calculation)
         tile_count = 0
@@ -308,7 +346,7 @@ def _run_analysis(job_id: str, request: AnalysisRequest) -> None:
 
 
 def _station_directory(station_id: str) -> Path:
-    if re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", station_id) is None:
+    if re.fullmatch(STATION_ID_PATTERN, station_id) is None:
         raise HTTPException(400, "invalid station_id")
     directory = (ARTIFACT_ROOT / station_id).resolve()
     if ARTIFACT_ROOT not in directory.parents or not directory.is_dir():
@@ -500,6 +538,14 @@ def _sample_station(
     }
 
 
+def _validate_tile_coordinates(z: int, x: int, y: int, *, web_mercator: bool) -> None:
+    try:
+        bounds = web_mercator_tile_bounds if web_mercator else geographic_tile_bounds
+        bounds(z, x, y)
+    except ValueError as error:
+        raise HTTPException(404, "tile coordinate is outside the supported pyramid") from error
+
+
 @app.post("/v1/samples", tags=["Coverage"])
 def batch_sample(request: BatchSampleRequest) -> dict[str, object]:
     samples: list[dict[str, object]] = []
@@ -520,13 +566,14 @@ def batch_sample(request: BatchSampleRequest) -> dict[str, object]:
 
 @app.get("/v1/composites/tiles/{z}/{x}/{y}.png", tags=["Coverage"])
 def composite_tile(
-    z: int,
-    x: int,
-    y: int,
+    z: int = ApiPath(ge=0, le=18),
+    x: int = ApiPath(ge=0, le=524287),
+    y: int = ApiPath(ge=0, le=262143),
     station_ids: str = Query(min_length=1),
     minimum_field_strength_dbuv_m: float = Query(5, ge=0, le=50),
     opacity: float = Query(0.7, ge=0, le=1),
 ) -> Response:
+    _validate_tile_coordinates(z, x, y, web_mercator=False)
     identifiers = list(
         dict.fromkeys(value.strip() for value in station_ids.split(",") if value.strip())
     )
@@ -548,19 +595,20 @@ def composite_tile(
     return Response(
         output.getvalue(),
         media_type="image/png",
-        headers={"Cache-Control": "public, max-age=300"},
+        headers={"Cache-Control": "no-store"},
     )
 
 
 @app.get("/v1/composites/web-tiles/{z}/{x}/{y}.png", tags=["Coverage"])
 def composite_web_tile(
-    z: int,
-    x: int,
-    y: int,
+    z: int = ApiPath(ge=0, le=18),
+    x: int = ApiPath(ge=0, le=262143),
+    y: int = ApiPath(ge=0, le=262143),
     station_ids: str = Query(min_length=1),
     minimum_field_strength_dbuv_m: float = Query(5, ge=0, le=50),
     opacity: float = Query(0.7, ge=0, le=1),
 ) -> Response:
+    _validate_tile_coordinates(z, x, y, web_mercator=True)
     identifiers = list(
         dict.fromkeys(value.strip() for value in station_ids.split(",") if value.strip())
     )
@@ -580,7 +628,7 @@ def composite_web_tile(
     output = io.BytesIO()
     Image.fromarray(rgba, "RGBA").save(output, "PNG", optimize=True)
     return Response(
-        output.getvalue(), media_type="image/png", headers={"Cache-Control": "public, max-age=300"}
+        output.getvalue(), media_type="image/png", headers={"Cache-Control": "no-store"}
     )
 
 
@@ -641,7 +689,7 @@ def field_strength_geotiff(station_id: str) -> FileResponse:
         path,
         media_type="image/tiff; application=geotiff",
         filename=f"{station_id}-field-strength-dbuv-m.tif",
-        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        headers={"Cache-Control": "no-store"},
     )
 
 
@@ -657,18 +705,19 @@ def visual_field_strength_geotiff(station_id: str) -> FileResponse:
         path,
         media_type="image/tiff; application=geotiff",
         filename=f"{station_id}-field-strength-visual.tif",
-        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        headers={"Cache-Control": "no-store"},
     )
 
 
 @app.get("/v1/coverage/{station_id}/tiles/{z}/{x}/{y}.png", tags=["Coverage"])
 def color_tile(
     station_id: str,
-    z: int,
-    x: int,
-    y: int,
+    z: int = ApiPath(ge=0, le=18),
+    x: int = ApiPath(ge=0, le=524287),
+    y: int = ApiPath(ge=0, le=262143),
     minimum_field_strength_dbuv_m: float = Query(5, ge=0, le=50),
 ) -> Response:
+    _validate_tile_coordinates(z, x, y, web_mercator=False)
     payload = render_tile(
         _station_directory(station_id) / "field-strength.tif",
         z,
@@ -678,19 +727,18 @@ def color_tile(
     )
     if payload is None:
         return Response(status_code=204)
-    return Response(
-        payload, media_type="image/png", headers={"Cache-Control": "public, max-age=3600"}
-    )
+    return Response(payload, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/v1/coverage/{station_id}/web-tiles/{z}/{x}/{y}.png", tags=["Coverage"])
 def web_color_tile(
     station_id: str,
-    z: int,
-    x: int,
-    y: int,
+    z: int = ApiPath(ge=0, le=18),
+    x: int = ApiPath(ge=0, le=262143),
+    y: int = ApiPath(ge=0, le=262143),
     minimum_field_strength_dbuv_m: float = Query(5, ge=0, le=50),
 ) -> Response:
+    _validate_tile_coordinates(z, x, y, web_mercator=True)
     payload = render_web_mercator_tile(
         _station_directory(station_id) / "field-strength.tif",
         z,
@@ -700,13 +748,17 @@ def web_color_tile(
     )
     if payload is None:
         return Response(status_code=204)
-    return Response(
-        payload, media_type="image/png", headers={"Cache-Control": "public, max-age=3600"}
-    )
+    return Response(payload, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/v1/coverage/{station_id}/values/{z}/{x}/{y}.png", tags=["Coverage"])
-def value_tile(station_id: str, z: int, x: int, y: int) -> Response:
+def value_tile(
+    station_id: str,
+    z: int = ApiPath(ge=0, le=18),
+    x: int = ApiPath(ge=0, le=524287),
+    y: int = ApiPath(ge=0, le=262143),
+) -> Response:
+    _validate_tile_coordinates(z, x, y, web_mercator=False)
     payload = render_tile(
         _station_directory(station_id) / "field-strength.tif", z, x, y, numeric=True
     )
@@ -715,7 +767,7 @@ def value_tile(station_id: str, z: int, x: int, y: int) -> Response:
     return Response(
         payload,
         media_type="image/png",
-        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        headers={"Cache-Control": "no-store"},
     )
 
 

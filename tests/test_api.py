@@ -38,3 +38,24 @@ def test_calculation_is_disabled_by_default(monkeypatch) -> None:
         },
     )
     assert response.status_code == 403
+
+
+def test_tile_coordinates_are_bounded() -> None:
+    client = TestClient(service.app)
+    assert client.get("/v1/coverage/missing/tiles/19/0/0.png").status_code == 422
+    assert client.get("/v1/coverage/missing/tiles/0/2/0.png").status_code == 404
+
+
+def test_current_geotiff_can_be_delivered(tmp_path, monkeypatch) -> None:
+    station_directory = tmp_path / "TEST-UHF-001"
+    station_directory.mkdir()
+    (station_directory / "manifest.json").write_text(
+        '{"published_outputs":["geotiff"]}', encoding="utf-8"
+    )
+    (station_directory / "field-strength.tif").write_bytes(b"test-geotiff")
+    monkeypatch.setattr(service, "ARTIFACT_ROOT", tmp_path)
+    service._manifest.cache_clear()
+    response = TestClient(service.app).get("/v1/coverage/TEST-UHF-001/field-strength.tif")
+    assert response.status_code == 200
+    assert response.content == b"test-geotiff"
+    service._manifest.cache_clear()

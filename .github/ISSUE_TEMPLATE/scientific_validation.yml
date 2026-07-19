@@ -1,0 +1,122 @@
+name: Scientific or model validation
+description: Submit measurements, reference cases, or a technically supported challenge to a prediction
+title: "[Validation]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Scientific scrutiny is encouraged. Please provide enough metadata for another
+        contributor to reproduce the comparison and distinguish implementation defects,
+        input uncertainty, model-domain limitations, and measurement uncertainty.
+        Do not upload restricted datasets or precise personal movement traces.
+
+  - type: dropdown
+    id: evidence_type
+    attributes:
+      label: Evidence type
+      options:
+        - Calibrated field measurement
+        - Published reference case
+        - Independent implementation comparison
+        - Analytical or limiting case
+        - Sensitivity or uncertainty analysis
+        - Proposed validation dataset or campaign
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Software version or commit
+      placeholder: v0.1.0 or full commit SHA
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Validation question
+      description: State the precise claim, discrepancy, or model behavior being evaluated.
+    validations:
+      required: true
+
+  - type: textarea
+    id: prediction_inputs
+    attributes:
+      label: Complete prediction inputs
+      description: Include coordinates or a privacy-safe equivalent, frequency, ERP, antenna heights, radius, DEM source/version/resolution, land/clutter assumptions, ray and grid settings, time/location percentages, output field quantity, and units.
+      placeholder: |
+        Frequency: ... MHz
+        ERP: ... W
+        TX/RX antenna heights: ... m
+        Radius/grid/rays: ... km / ... m / ...
+        DEM: source, version, resolution
+        Result: ... dBµV/m at ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: observations
+    attributes:
+      label: Reference or measurement method
+      description: For measurements, document instrument and calibration, antenna factor/gain and height, feeder loss, bandwidth/detector, sampling route and aggregation, date/time, and uncertainty. For a reference, provide an exact citation and setup.
+    validations:
+      required: true
+
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Results and comparison
+      description: Report predicted and observed/reference values in explicit units, residuals, sample count, and any statistical treatment.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducibility
+    attributes:
+      label: Reproduction material
+      description: Link to openly licensed, privacy-safe data/code or explain how maintainers can reproduce the case from public inputs. State the license and provenance.
+    validations:
+      required: true
+
+  - type: textarea
+    id: interpretation
+    attributes:
+      label: Interpretation and known limitations
+      description: Explain likely causes, confounders, uncertainty, and whether the case is inside the stated validity domain.
+
+  - type: dropdown
+    id: participation
+    attributes:
+      label: Can you participate in follow-up validation?
+      options:
+        - Yes, including data/code revisions and technical review
+        - Yes, for questions about the submitted evidence
+        - Limited availability
+        - No
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        The project welcomes collaborators and is seeking scientific co-authors.
+        Substantial intellectual contributions are evaluated under
+        [the contribution and authorship criteria](https://github.com/coderplus007/HamRelay-FieldStrength/blob/main/CONTRIBUTING.md);
+        submitting evidence alone does not guarantee authorship.
+
+  - type: checkboxes
+    id: rights
+    attributes:
+      label: Data, ethics, and reproducibility
+      options:
+        - label: I have the right to share every submitted dataset, image, and excerpt under the stated terms.
+          required: true
+        - label: I removed unnecessary personal data, credentials, and sensitive location traces.
+          required: true
+        - label: I clearly distinguished measurements, model outputs, and interpretation, including their units and uncertainty.
+          required: true
+        - label: I agree to follow the Code of Conduct during technical review.
+          required: true
+

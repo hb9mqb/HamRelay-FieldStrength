@@ -49,3 +49,18 @@ def test_seed_file_never_replaces_existing_station(tmp_path, monkeypatch) -> Non
     database.upsert_station(existing)
     assert database.seed_from_file(seed_path) == 0
     assert database.get_station("REAL-1")["erp_w"] == 25
+
+
+def test_registry_records_default_power_provenance(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(database, "DATABASE_PATH", tmp_path / "stations.sqlite3")
+    database.initialize()
+    record = StationRecord(
+        station_id="ASSUMED-1",
+        latitude_deg=47.0,
+        longitude_deg=8.0,
+        tx_frequency_mhz=439.5,
+    )
+    assert record.erp_w == 12
+    assert record.power_assumed is True
+    stored = database.upsert_station(record)
+    assert stored["power_assumed"] is True

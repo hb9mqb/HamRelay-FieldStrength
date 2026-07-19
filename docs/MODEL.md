@@ -35,8 +35,10 @@ max(minimum_rays, ceil(2π radius / outer_arc_spacing))
 P.1812 field endpoints are evaluated along each ray. Bilinear polar
 interpolation produces a local azimuthal-equidistant raster, subsequently
 reprojected to EPSG:4326. Interpolation does not increase physical model
-resolution. The manifest separately records DEM, profile, radial, angular and
-output-grid spacing.
+resolution. The manifest separately records exact input DEM
+filenames/sizes/SHA-256 checksums, climate raster or inland-only assumption,
+profile, radial, angular and output-grid spacing, ERP and whether it was
+assumed, receiver parameters, statistical percentages, and near-field policy.
 
 ## Explicit assumptions
 
