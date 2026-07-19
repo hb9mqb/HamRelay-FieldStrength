@@ -26,7 +26,9 @@ Author: **Beat W. Meier, HB9MQB**
 
 ## Project status and scope
 
-Version 0.1.0 is ready to publish as a self-contained field-strength component.
+Version 0.1.0 is the first published self-contained field-strength component.
+The current development line adds explicit clutter and P.1812 radio-climate
+inputs for production host integration.
 Its intentionally bounded scope is:
 
 - calculation of terrain-aware repeater fields in dBµV/m;

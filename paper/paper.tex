@@ -136,10 +136,14 @@ capped at \SI{100}{\kilo\meter}, receiver height defaults to
 \SI{1.5}{\meter} above ground, and the default time/location percentages are
 50/50. Vertical polarization is the default but is a station input.
 
-The present reference implementation applies zero representative clutter
-height unless a future, provenance-bearing clutter adapter is selected. This
-limitation is recorded in every manifest. An unrecorded assumption would be
-more harmful than a conservative, visible simplification.
+The implementation accepts either a direct non-negative clutter-height raster
+or ESA WorldCover classes \cite{zanaga2022worldcover}. The default class mapping
+uses representative heights of \SI{15}{\meter} for tree cover,
+\SI{3}{\meter} for shrubland, \SI{15}{\meter} for built-up areas,
+\SI{1}{\meter} for herbaceous wetland, and \SI{10}{\meter} for mangroves.
+The selected mode, source checksums, and mapping are retained in the manifest.
+When no clutter input is selected, zero representative clutter remains an
+explicit fallback rather than an unrecorded claim of urban accuracy.
 
 \section{Geospatial method}
 
@@ -179,8 +183,9 @@ is computationally expensive but retains the physical endpoint dependence.
 Where an externally prepared climatic-zone raster is present, categorical
 nearest-neighbour sampling yields sea (1), coastal land (3), or inland (4).
 Omitting it explicitly selects inland zone 4 and is inappropriate for rigorous
-coastal predictions. A complete coastal implementation must also compute the
-terminal-to-coast path distances required by P.1812.
+coastal predictions. For every modeled endpoint the implementation derives the
+transmitter- and receiver-terminal distances to the nearest sea transition and
+passes them explicitly to P.1812.
 
 \subsection{Rasterization and encoding}
 
@@ -343,12 +348,13 @@ reception or universal superiority.
 
 \section{Limitations and future work}
 
-Current limitations include isotropic transmitter patterns, zero default
-clutter, a median-statistics default, no indoor model, and possible DEM surface
-bias. Coastal predictions need verified zone and coast-distance preprocessing.
-Future work should add antenna-pattern rotation, provenance-rich clutter,
-uncertainty bands, field-survey tooling, residual dashboards, and sensitivity
-analysis across DEMs and statistical percentages.
+Current limitations include isotropic transmitter patterns, a zero-clutter
+fallback when no classified source is supplied, a median-statistics default,
+no indoor model, and possible DEM or representative-clutter-height bias.
+Coastal predictions require a verified zone raster. Future work should add
+antenna-pattern rotation, regional clutter calibration, uncertainty bands,
+field-survey tooling, residual dashboards, and sensitivity analysis across
+DEMs and statistical percentages.
 
 Software acceleration should expand through tested CUDA, ROCm, SYCL and Vulkan
 backends. WebGPU can combine multiple numerical tiles locally and reduce API

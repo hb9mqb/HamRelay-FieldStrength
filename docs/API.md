@@ -88,7 +88,11 @@ and the near-field method.
 
 `FIELD_STRENGTH_DEM_CATALOG` points to a server-side JSON object whose entries
 contain bounds, resolution, priority, source, `dem_paths`, and optionally
-`radio_climate_path`:
+`clutter_paths`, `clutter_mode`, and `radio_climate_path`. Clutter mode
+`worldcover_classes` converts ESA WorldCover classes into documented
+representative P.1812 clutter heights; `height_m` consumes a non-negative
+height raster directly. A supplied radio-climate raster must use Py1812 zone
+codes 1 (sea), 3 (coastal land), and 4 (inland):
 
 ```json
 {
@@ -97,7 +101,10 @@ contain bounds, resolution, priority, source, `dem_paths`, and optionally
     "bounds": [-180, -90, 180, 90],
     "resolution_m": 30,
     "priority": 10,
-    "dem_paths": ["/srv/dem/copernicus/*.tif"]
+    "dem_paths": ["/srv/dem/copernicus/*.tif"],
+    "clutter_paths": ["/srv/clutter/worldcover/*.tif"],
+    "clutter_mode": "worldcover_classes",
+    "radio_climate_path": "/srv/radio-climate/p1812-zones.tif"
   }
 }
 ```
@@ -106,6 +113,12 @@ Server catalog paths may contain server-controlled globs; clients can never
 submit paths. Production deployments
 should replace the in-process reference job runner with a durable queue while
 retaining this request contract.
+
+Native host adapters may additionally supply a checksum-validated
+`itu_digital_maps_path` through the Python `CalculationRequest`. Spawned macOS
+and Windows workers reload that archive explicitly, avoiding inherited or
+bootstrap-only Py1812 map state. The public HTTP API never accepts this path;
+it remains an operator-controlled deployment input.
 
 ### `GET /v1/health`
 

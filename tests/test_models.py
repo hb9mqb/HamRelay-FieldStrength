@@ -95,3 +95,27 @@ def test_workers_are_bounded(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError):
         CalculationRequest(station=station(), dem_paths=[dem], output_directory=tmp_path, workers=0)
+
+
+def test_missing_clutter_raster_is_rejected(tmp_path: Path) -> None:
+    dem = tmp_path / "dem.tif"
+    dem.touch()
+    with pytest.raises(ValidationError):
+        CalculationRequest(
+            station=station(),
+            dem_paths=[dem],
+            clutter_paths=[tmp_path / "missing-worldcover.tif"],
+            output_directory=tmp_path,
+        )
+
+
+def test_missing_itu_map_archive_is_rejected(tmp_path: Path) -> None:
+    dem = tmp_path / "dem.tif"
+    dem.touch()
+    with pytest.raises(ValidationError):
+        CalculationRequest(
+            station=station(),
+            dem_paths=[dem],
+            itu_digital_maps_path=tmp_path / "missing-p1812.npz",
+            output_directory=tmp_path,
+        )

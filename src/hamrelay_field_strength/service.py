@@ -262,12 +262,29 @@ def _run_analysis(job_id: str, request: AnalysisRequest) -> None:
             )
         if not dem_paths:
             raise ValueError(f"DEM dataset resolved to no files: {selected_dataset_id}")
+        clutter_entry = entry.get("clutter_paths", [])
+        if not isinstance(clutter_entry, list):
+            raise ValueError(f"DEM dataset has invalid clutter_paths: {selected_dataset_id}")
+        clutter_paths: list[Path] = []
+        for pattern in clutter_entry:
+            clutter_paths.extend(Path(path) for path in glob.glob(str(pattern)))
+        clutter_paths = sorted(set(clutter_paths))
+        if clutter_entry and not clutter_paths:
+            raise ValueError(f"clutter dataset resolved to no files: {selected_dataset_id}")
+        clutter_mode_value = str(entry.get("clutter_mode", "worldcover_classes"))
+        if clutter_mode_value not in {"worldcover_classes", "height_m"}:
+            raise ValueError(f"DEM dataset has invalid clutter_mode: {selected_dataset_id}")
+        clutter_mode: Literal["worldcover_classes", "height_m"] = (
+            "height_m" if clutter_mode_value == "height_m" else "worldcover_classes"
+        )
         output_directory = (ARTIFACT_ROOT / station.id).resolve()
         if ARTIFACT_ROOT not in output_directory.parents:
             raise ValueError("station artifact directory escapes the configured root")
         calculation = CalculationRequest(
             station=station,
             dem_paths=dem_paths,
+            clutter_paths=clutter_paths,
+            clutter_mode=clutter_mode,
             radio_climate_path=Path(str(entry["radio_climate_path"]))
             if entry.get("radio_climate_path")
             else None,
@@ -315,6 +332,8 @@ def _run_analysis(job_id: str, request: AnalysisRequest) -> None:
             "dataset_id": selected_dataset_id,
             "resolution_m": entry.get("resolution_m"),
             "source": entry.get("source"),
+            "clutter_mode": clutter_mode if clutter_paths else "none",
+            "clutter_sources": [str(path) for path in clutter_paths],
             "acquisition": acquisition,
         }
         manifest_data["visual_geotiff"] = (
@@ -448,6 +467,7 @@ def capabilities() -> dict[str, object]:
         "frequency_mhz": {"minimum": 30, "maximum": 6000},
         "radius_km": {"exclusive_minimum": 0.25, "maximum": 100},
         "terrain_modes": ["dataset", "auto"],
+        "clutter_modes": ["worldcover_classes", "height_m"],
         "output_formats": ["geotiff", "tiles"],
         "visual_geotiff_backgrounds": ["transparent", "map", "streetmap"],
         "maximum_composite_stations": 64,

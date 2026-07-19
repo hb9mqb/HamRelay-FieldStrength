@@ -38,7 +38,7 @@ expected architectural boundary, not missing propagation functionality.
 | M5 CPU and optional Metal rasterization | Implemented | Additive | NumPy/Metal equivalence and performance evidence |
 | Worldwide automatic DEM | Implemented for Copernicus GLO-30/GLO-90 fallback | Compatible through the public terrain contract | Configure any preferred regional datasets in the host deployment |
 | Radio-climate zones | Supported as an optional raster | Explicit policy choice | Supply a production raster when the embedding requires it |
-| Surface clutter/building policy | Explicitly zero in the current standalone manifest | Deliberate model boundary | Record the approved no-clutter method version |
+| Surface clutter/building policy | WorldCover-class and direct-height raster inputs implemented on the development line; zero-clutter remains an explicit fallback | Compatible through server-controlled datasets | Validate the selected source and representative heights |
 | Station registry and coordinate locks | Implemented in SQLite | Host remains authoritative by design | Use host UUIDs and synchronize without changing curated coordinates |
 | Float32 GeoTIFF | Implemented | Compatible after schema mapping | Validate CRS, NoData, bounds, unit tags, and provenance |
 | Numeric/color tiles | Implemented | URL/manifest adapter needed | Match tiling scheme, zoom range, encoding, and cache keys |

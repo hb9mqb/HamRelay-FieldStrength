@@ -15,6 +15,14 @@ artifacts/
 data/
 paper/build/
 paper/rendered/
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
 runtime/
 database/*.sqlite3
 database/*.sqlite3-*
