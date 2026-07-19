@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "HamRelay Field Strength"
+type: software
+authors:
+  - family-names: "Meier"
+    given-names: "Beat W."
+    alias: "HB9MQB"
+version: 0.1.0
+date-released: 2026-07-19
+license: MIT
+repository-code: "https://github.com/coderplus007/HamRelay-FieldStrength"
+abstract: >-
+  Reproducible terrain-aware repeater field-strength maps, numerical web
+  overlays, and reference S-meter sampling based on ITU-R P.1812.
+preferred-citation:
+  type: article
+  title: "Reproducible Terrain-Aware Repeater Field-Strength Mapping with ITU-R P.1812"
+  authors:
+    - family-names: "Meier"
+      given-names: "Beat W."
+      alias: "HB9MQB"
+  year: 2026

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HamRelay Field Strength — Integration Demo</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header>
+    <div><strong>HamRelay Field Strength</strong><span>Street-map integration demo</span></div>
+    <nav><a href="/docs" target="_blank">OpenAPI</a><a href="/v1/capabilities" target="_blank">Capabilities</a></nav>
+  </header>
+  <main>
+    <div id="map" aria-label="Street map with field-strength overlays"></div>
+    <aside>
+      <section>
+        <h2>1 · Station registry</h2>
+        <div class="grid filters">
+          <input id="filterMode" placeholder="Mode (e.g. DMR)">
+          <input id="filterBand" placeholder="Band (e.g. 70cm)">
+          <input id="filterCountry" placeholder="Country">
+          <button id="refreshStations">Refresh</button>
+        </div>
+        <div id="stationList" class="station-list"></div>
+        <details>
+          <summary>Add or update a station</summary>
+          <div class="grid editor">
+            <input id="apiKey" type="password" placeholder="Admin API key">
+            <input id="stationId" value="TEST-UHF-001" placeholder="Station ID">
+            <input id="stationName" value="Example UHF repeater" placeholder="Name">
+            <label>Latitude<input id="latitude" type="number" step="0.000001" value="46.8"></label>
+            <label>Longitude<input id="longitude" type="number" step="0.000001" value="8.2"></label>
+            <label>TX MHz<input id="frequency" type="number" step="0.0001" value="439.5"></label>
+            <label>ERP W<input id="erp" type="number" step="0.1" value="12"></label>
+            <label>Antenna AGL m<input id="agl" type="number" step="0.1" value="20"></label>
+            <input id="mode" value="FM" placeholder="Mode">
+            <input id="band" value="70cm" placeholder="Band">
+            <input id="country" value="CH" placeholder="Country">
+            <label class="check"><input id="coordinatesLocked" type="checkbox">Lock coordinates</label>
+            <button id="saveStation">Save station</button>
+          </div>
+        </details>
+      </section>
+
+      <section>
+        <h2>2 · Calculate</h2>
+        <div class="grid">
+          <label>Radius <output id="radiusValue">50 km</output><input id="radius" type="range" min="1" max="100" value="50"></label>
+          <label>Terrain<select id="terrainMode"><option value="auto">Automatic best available</option><option value="dataset">Named dataset</option></select></label>
+          <input id="datasetId" placeholder="Dataset ID" disabled>
+          <label>Visual GeoTIFF<select id="geotiffBackground"><option value="transparent">Transparent layer</option><option value="streetmap">Street map</option><option value="map">Map</option></select></label>
+          <label class="check"><input id="wantGeotiff" type="checkbox" checked>GeoTIFF</label>
+          <label class="check"><input id="wantTiles" type="checkbox" checked>Web tiles</label>
+          <button id="calculate">Calculate selected</button>
+        </div>
+        <pre id="jobStatus">Ready.</pre>
+      </section>
+
+      <section>
+        <h2>3 · Display and inspect</h2>
+        <label>Opacity <output id="opacityValue">70%</output><input id="opacity" type="range" min="0" max="100" value="70"></label>
+        <label>Minimum field <output id="thresholdValue">5 dBµV/m</output><input id="threshold" type="range" min="0" max="50" value="5"></label>
+        <label class="check"><input id="composite" type="checkbox" checked>Combine selected stations by strongest field</label>
+        <div class="buttons"><button id="showOverlay">Show/update</button><button id="hideOverlay">Hide</button></div>
+        <div id="legend"></div>
+        <div id="cursorSample">Move the pointer over a calculated overlay.</div>
+        <div class="buttons"><a id="downloadRaw" class="button disabled">Analysis GeoTIFF</a><a id="downloadVisual" class="button disabled">Visual GeoTIFF</a></div>
+        <small>Expected S readings assume an ideal matched 0 dBi antenna. dBµV/m is the primary result.</small>
+        <small class="love">Designed with ♥ by Beat W. Meier, HB9MQB</small>
+      </section>
+    </aside>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

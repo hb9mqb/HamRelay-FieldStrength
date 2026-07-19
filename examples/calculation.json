@@ -1,0 +1,23 @@
+{
+  "station": {
+    "id": "TEST-UHF-001",
+    "latitude_deg": 46.8,
+    "longitude_deg": 8.2,
+    "frequency_mhz": 439.5,
+    "erp_w": 12.0,
+    "antenna_height_agl_m": 20.0,
+    "polarization": "vertical"
+  },
+  "dem_paths": ["data/N46E008.tif"],
+  "output_directory": "artifacts/TEST-UHF-001",
+  "radius_km": 100.0,
+  "profile_step_m": 50.0,
+  "radial_step_m": 200.0,
+  "output_resolution_m": 60.0,
+  "minimum_rays": 360,
+  "outer_arc_spacing_m": 500.0,
+  "receiver_height_agl_m": 1.5,
+  "time_percent": 50.0,
+  "location_percent": 50.0,
+  "workers": "auto"
+}

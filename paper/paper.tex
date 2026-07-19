@@ -1,0 +1,386 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+\usepackage[margin=18mm,columnsep=7mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{fancyhdr}
+
+\definecolor{linkblue}{HTML}{075985}
+\hypersetup{colorlinks=true,linkcolor=linkblue,citecolor=linkblue,urlcolor=linkblue,pdftitle={Reproducible Terrain-Aware Repeater Field-Strength Mapping with ITU-R P.1812},pdfauthor={Beat W. Meier, HB9MQB}}
+\sisetup{detect-all,range-phrase=--,range-units=single}
+\DeclareSIUnit{\dBm}{dBm}
+\setlist{nosep,leftmargin=*}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{B. W. Meier: Terrain-Aware Repeater Field-Strength Mapping}
+\fancyhead[R]{2026}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.2pt}
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+
+\title{\vspace{-1.2em}\textbf{Reproducible Terrain-Aware Repeater Field-Strength Mapping with ITU-R P.1812}}
+\author{Beat W. Meier, HB9MQB}
+\date{19 July 2026}
+
+\begin{document}
+\twocolumn[
+\maketitle
+\begin{abstract}
+Coverage maps for terrestrial repeaters are often rendered as binary or
+single-colour visibility regions. Such products do not preserve a physical
+field quantity and cannot distinguish weak from strong predicted service.
+This paper specifies an open, reproducible workflow that calculates
+path-specific electric field strength in \si{\decibel\micro\volt\per\meter}
+using Recommendation ITU-R P.1812-8, terrain profiles over a full
+\ang{360}, actual effective radiated power (ERP) where available, and an
+explicit P.525 free-space treatment within the short-path region in which a
+valid P.1812 profile cannot yet be formed. Polar results are interpolated to an
+azimuthal-equidistant raster, reprojected, and published both as numerical and
+colour tiles. A cursor service reports field strength and, separately, an
+expected nominal S-meter indication under stated ideal receiving assumptions.
+The implementation uses Apple M5 performance-core scheduling, shared memory,
+and an optional fused MLX/Metal interpolation kernel while retaining a
+numerically equivalent NumPy backend. We describe inputs, equations, numerical
+contracts, validation layers, uncertainty, and portability. The method improves
+information content and reproducibility over binary terrain-visibility maps;
+it remains a planning prediction rather than a guarantee of communication.
+\end{abstract}
+\vspace{0.8em}
+\noindent\textbf{Keywords:} radio propagation; field strength; ITU-R P.1812;
+terrain profile; repeater; GIS; S meter; Apple silicon; reproducibility
+\vspace{1em}
+]
+
+\section{Introduction}
+
+Maps are an efficient interface between radio-propagation models and operators,
+but the graphical form can obscure the modeled quantity. A terrain horizon or
+binary viewshed answers whether two points have geometric visibility under a
+particular surface model. It does not calculate received field strength, nor
+does it represent diffraction, troposcatter, anomalous propagation, frequency,
+ERP, receiver height, radio-climatic zone, or statistical time and location
+percentages. A single-colour polygon consequently invites an interpretation
+that its boundary separates reliable service from no service.
+
+For terrestrial point-to-area applications from \SI{30}{\mega\hertz} to
+\SI{6}{\giga\hertz}, ITU-R P.1812 provides a path-specific prediction method
+that combines several propagation mechanisms and returns basic transmission
+loss and field strength \cite{iturp1812}. The method builds upon decades of
+work on terrestrial propagation and diffraction, including the Bullington and
+multiple-knife-edge constructions \cite{bullington1947,deygout1966}.
+
+This work contributes a reproducible computational and publication contract:
+(i) physically meaningful \si{\decibel\micro\volt\per\meter} rasters,
+(ii) stable numerical web tiles distinct from presentation colours,
+(iii) point sampling with an explicitly conditional S-meter estimate,
+(iv) provenance manifests, and (v) a native Apple M5 execution strategy with
+documented routes to other operating systems and accelerators. The work does
+not introduce a new propagation law; its novelty is the auditable integration
+of a recognized path model, geospatial sampling, numerical web publication,
+and receiver-reference interaction.
+
+\section{Propagation basis}
+
+\subsection{Path-specific field prediction}
+
+Recommendation P.1812-8 predicts terrestrial point-to-area propagation from a
+terrain profile and terminal geometry. Its valid frequency interval is
+\SIrange{30}{6000}{\mega\hertz}; paths use ground height, representative clutter
+height, radio-climatic zones, antenna heights above local ground, polarization,
+coordinates, and statistical percentages \cite{iturp1812}. The selected open
+implementation is Py1812 at an exact revision rather than an unpinned package
+release \cite{py1812}.
+
+For every receiver endpoint, the implementation passes frequency $f$, time
+percentage $p$, profile distance $d_i$, terrain $h_i$, representative clutter
+$R_i$, climatic zone $z_i$, transmitter and receiver heights $h_{tg}$ and
+$h_{rg}$, polarization, terminal coordinates, location percentage $p_L$, and
+ERP to P.1812. The model internally accounts for the effective Earth geometry,
+diffraction, anomalous/ducting mechanisms and troposcatter. The wrapper must not
+add a second Earth-curvature correction.
+
+\subsection{Near-zone treatment}
+
+P.1812 requires an adequate terrain profile; the selected implementation needs
+at least five profile points and a path of approximately \SI{0.25}{\kilo\meter}.
+Inside this region we use the free-space relation associated with P.525
+\cite{iturp525}. Expressed for ERP in watts and distance in kilometres,
+
+\begin{equation}
+E_{\mathrm{fs}} = 76.92 + 10\log_{10} P_{\mathrm{ERP}}
+                 - 20\log_{10} d
+\quad [\mathrm{dB\mu V/m}].
+\label{eq:p525}
+\end{equation}
+
+This branch is restricted to the short-path domain. It is not a substitute for
+P.1812 across the service area. The distinction matters in obstructed terrain,
+where free-space extension would systematically overstate distant field.
+
+\subsection{Transmitter and receiver assumptions}
+
+The calculation uses the reported ERP whenever present; \SI{12}{\watt} is an
+explicit fallback only for missing values. ERP must not be confused with
+transmitter output power before feed-line and antenna effects. The radius is
+capped at \SI{100}{\kilo\meter}, receiver height defaults to
+\SI{1.5}{\meter} above ground, and the default time/location percentages are
+50/50. Vertical polarization is the default but is a station input.
+
+The present reference implementation applies zero representative clutter
+height unless a future, provenance-bearing clutter adapter is selected. This
+limitation is recorded in every manifest. An unrecorded assumption would be
+more harmful than a conservative, visible simplification.
+
+\section{Geospatial method}
+
+\subsection{Terrain inputs and vertical meaning}
+
+The engine accepts georeferenced elevation rasters and transforms a bounded
+domain into a local azimuthal-equidistant (AEQD) coordinate system centred on
+the transmitter. AEQD preserves distance and direction from the centre, which
+matches radial path extraction.
+
+Copernicus DEM GLO-30 is a useful worldwide default, but it is a digital surface
+model containing vegetation and infrastructure rather than a universal
+bare-earth DTM. It has one-arc-second latitude spacing and EGM2008 vertical
+heights; reported global aggregate accuracies allow local deviations
+\cite{copernicusdem}. Comparative research also demonstrates that DEM errors
+depend on terrain and product type \cite{maresova2021}. Therefore, input post
+spacing must not be equated with propagation accuracy. Regional DTMs may be
+substituted when their datum, license, version, and preprocessing are retained.
+
+\subsection{Polar sampling}
+
+Let $R$ be calculation radius and $\Delta_a$ the requested maximum outer-arc
+spacing. With a minimum of 360 rays, the ray count is
+
+\begin{equation}
+N_\theta = \max\left(360,
+  \left\lceil\frac{2\pi R}{\Delta_a}\right\rceil\right).
+\label{eq:rays}
+\end{equation}
+
+Azimuths are uniformly distributed in $[0,360)$, avoiding duplication of the
+zero-degree ray. Terrain defaults to a \SI{50}{\meter} profile step. Field
+endpoints default to \SI{200}{\meter} radial spacing. For every azimuth, the
+terrain prefix from transmitter to each endpoint is evaluated by P.1812. This
+is computationally expensive but retains the physical endpoint dependence.
+
+Where an externally prepared climatic-zone raster is present, categorical
+nearest-neighbour sampling yields sea (1), coastal land (3), or inland (4).
+Omitting it explicitly selects inland zone 4 and is inappropriate for rigorous
+coastal predictions. A complete coastal implementation must also compute the
+terminal-to-coast path distances required by P.1812.
+
+\subsection{Rasterization and encoding}
+
+The polar matrix is bilinearly interpolated in azimuth and radius to a default
+\SI{60}{\meter} AEQD output grid. This grid spacing is a publication choice,
+not a statement that the underlying propagation model resolves every
+\SI{60}{\meter} feature. The raster is then reprojected to EPSG:4326.
+
+Numerical PNG tiles use an unsigned 8-bit code $q$. Zero is NoData, and
+
+\begin{equation}
+\begin{aligned}
+q &= 1 + \operatorname{round}
+  \left(\frac{E-E_{\min}}{\Delta E}\right),\\
+E_{\min}&=-20,\qquad \Delta E=0.5\ \mathrm{dB},
+\end{aligned}
+\label{eq:quantize}
+\end{equation}
+
+with saturation to $[1,255]$. Presentation tiles apply a fixed absolute scale
+from purple through blue, cyan, green, yellow and red. A threshold from 0 to
+\SI{50}{\decibel\micro\volt\per\meter}, default 5, changes alpha only. It never
+changes stored predictions. Station-independent colours make overlapping
+repeaters comparable.
+
+\section{Expected S-meter indication}
+
+The primary output remains $E$ in \si{\decibel\micro\volt\per\meter}. For an
+ideal polarization-matched, lossless, \SI{0}{\decibel isotropic} receiving
+antenna terminated in a matched receiver, plane-wave power density and
+effective aperture yield
+
+\begin{equation}
+P_r\,[\mathrm{dBm}] = E\,[\mathrm{dB\mu V/m}]
+ +20\log_{10}\lambda\,[\mathrm{m}] -126.755.
+\label{eq:fieldpower}
+\end{equation}
+
+This is consistent with the free-space transmission framework introduced by
+Friis \cite{friis1946}. The nominal IARU Region 1 recommendation assigns S9 to
+\SI{-73}{\dBm} below \SI{30}{\mega\hertz} and
+\SI{-93}{\dBm} above it, with \SI{6}{\decibel} per S unit below
+S9 \cite{iaru_smeter}. Since P.1812 begins at \SI{30}{\mega\hertz}, the latter
+reference normally applies here.
+
+Equation~\ref{eq:fieldpower} does not include real antenna gain and direction,
+height-dependent local coupling, body loss, polarization mismatch, cable loss,
+receiver bandwidth, AGC calibration, or building penetration. The interface
+therefore says \emph{expected S-meter indication}, presents the corresponding
+field value, and labels the idealized receiver reference.
+
+\section{Implementation and M5 optimization}
+
+P.1812 endpoint calculations are branch-heavy and largely independent by
+azimuth. On native Apple silicon, the engine queries the performance-core count
+and reserves one or two such cores for the operating system. A process pool
+distributes ray chunks. Numeric-library thread counts are limited to one per
+worker, avoiding multiplicative oversubscription.
+
+macOS uses the safe \texttt{spawn} start method after GDAL/NumPy initialization.
+Naively passing terrain arrays would copy them into every process. The M5 path
+places terrain and climatic-zone grids in POSIX shared memory; workers attach
+read-only NumPy views. This reduces memory pressure and serialization time.
+
+The polar-to-Cartesian step is regular and massively data-parallel. An optional
+MLX backend launches one fused Metal kernel that computes geometry, indices,
+four samples, bilinear weights, and the output value. The P.1812 model itself
+stays on CPU performance cores. This division matches workload structure and
+keeps a NumPy reference backend for numerical comparison. Docker Desktop Linux
+guests cannot access the host Metal device, so GPU computation requires a
+native macOS process.
+
+\begin{table}[t]
+\centering
+\caption{Portable acceleration roadmap.}
+\label{tab:ports}
+\begin{tabular}{p{0.19\columnwidth}p{0.65\columnwidth}}
+\toprule
+Target & Suggested implementation and evidence \\
+\midrule
+Linux & NUMA-aware pools, shared memory, SIMD profiling \\
+Windows & Spawn-safe mappings and Job Object resource limits \\
+NVIDIA & CUDA/CuPy interpolation and colour kernels \\
+AMD & ROCm/HIP implementation of the same kernel contract \\
+Intel & oneAPI/SYCL on integrated and discrete GPUs \\
+Cross-vendor & Vulkan compute; WebGPU for client composition \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Every accelerator must be compared with the NumPy backend using maximum
+absolute and relative error, and must report hardware, OS, runtime, wall time,
+peak memory, and energy where available. Moving the whole P.1812 algorithm to a
+GPU is not automatically beneficial because divergence and many short profiles
+can negate throughput advantages.
+
+\section{API and reproducibility contract}
+
+Each station artifact contains a floating-point GeoTIFF and a JSON manifest.
+The manifest records model identifier, pinned implementation, algorithm
+version, physical units, coordinates, frequency, ERP, antenna height,
+polarization, radius, profile/radial/output spacing, ray count, worker count,
+raster backend, field range, and assumptions. Input rasters should additionally
+be identified by checksums, vertical datum and license in production workflows.
+
+A stateless read-only HTTP service exposes the manifest, thresholded colour
+tiles, immutable numerical tiles, and point samples. The service reads artifact
+files rather than exposing an operational database to browsers. This separation
+supports TLS termination, caching, rate limiting, atomic artifact replacement,
+and independent calculator credentials.
+
+The TypeScript client keeps one imagery layer per station. Filter changes map
+to the exact selected station set. Layer toggles and base-map changes do not
+invoke camera movement. Pointer sampling is debounced and cancellable; when
+several visible stations intersect, the strongest modeled field is shown.
+
+\section{Validation}
+
+Three validation levels must remain distinct.
+
+\paragraph{Analytical and encoding tests.}
+P.525 reference values, field/power conversion, S thresholds, tile geometry,
+NoData, quantization round trips, and azimuth wraparound are deterministic unit
+tests.
+
+\paragraph{Implementation conformance.}
+The pinned Py1812 validation profiles should reproduce the recommendation's
+reference outputs within their specified tolerance. Synthetic flat, ridge, and
+coastal profiles exercise wrapper logic. NumPy and Metal rasterizers must agree
+within declared floating-point tolerances. Conformance demonstrates consistent
+implementation, not predictive truth at a location.
+
+\paragraph{Empirical validation.}
+Calibrated field surveys require known antenna factor, receiver bandwidth,
+position, time, transmitter ERP, antenna pattern, cable loss, and preferably
+pre-registered routes. Calibration and validation routes should be disjoint.
+Report bias, mean absolute error, root-mean-square error, standard deviation and
+residual quantiles by distance, terrain class, visibility state and field band.
+Uncalibrated consumer S meters are useful qualitative observations but are not
+absolute field instruments.
+
+\section{Comparison with binary visibility maps}
+
+Compared with a single-colour terrain-visibility footprint, the specified
+method offers six concrete advantages:
+
+\begin{enumerate}
+\item the map retains a physical quantity and absolute units;
+\item frequency, ERP, heights, polarization, time and location enter the model;
+\item diffraction and longer-range P.1812 mechanisms extend beyond geometry;
+\item thresholds can change without recalculating or recolouring the physics;
+\item numerical tiles support composition and point interrogation; and
+\item manifests make assumptions and revisions auditable.
+\end{enumerate}
+
+These benefits do not remove uncertainty. A simple visibility map may be faster,
+easier to explain, and sufficient for preliminary siting. The appropriate claim
+is improved information content and physical traceability, not guaranteed local
+reception or universal superiority.
+
+\section{Limitations and future work}
+
+Current limitations include isotropic transmitter patterns, zero default
+clutter, a median-statistics default, no indoor model, and possible DEM surface
+bias. Coastal predictions need verified zone and coast-distance preprocessing.
+Future work should add antenna-pattern rotation, provenance-rich clutter,
+uncertainty bands, field-survey tooling, residual dashboards, and sensitivity
+analysis across DEMs and statistical percentages.
+
+Software acceleration should expand through tested CUDA, ROCm, SYCL and Vulkan
+backends. WebGPU can combine multiple numerical tiles locally and reduce API
+load. Such work must preserve the field-value contract and publish numerical
+equivalence tests.
+
+\section{Conclusion}
+
+Terrain-aware repeater mapping is most useful when it preserves what was
+calculated. The method presented here produces continuous P.1812 field strength
+in \si{\decibel\micro\volt\per\meter}, uses an explicit P.525 near zone,
+separates numerical values from presentation colours, and makes any S-meter
+indication conditional on stated receiving assumptions. Provenance manifests
+and layered validation prevent a visually attractive overlay from being
+mistaken for measured truth. Apple M5 optimizations reduce runtime without
+changing the scientific contract, while the reference NumPy path and documented
+porting interfaces support independent implementations.
+
+\section*{Software and data availability}
+
+The source code, web client, API, tests, LaTeX manuscript and citation metadata
+are released under the MIT License. Py1812, ITU digital products, elevation data
+and map imagery retain their separate licenses and are not redistributed. A
+versioned archive should be cited for scientific use.
+
+\section*{Acknowledgements}
+
+The author acknowledges the ITU-R Study Group 3 propagation work, the Py1812
+contributors, the IARU technical recommendations, and the providers and
+validators of global elevation data.
+
+\bibliographystyle{plainurl}
+\bibliography{references}
+
+\end{document}

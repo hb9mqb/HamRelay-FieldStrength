@@ -1,0 +1,32 @@
+services:
+  field-strength:
+    image: ghcr.io/coderplus007/hamrelay-field-strength:${IMAGE_TAG:-latest}
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FIELD_STRENGTH_PORT:-8765}:8765"
+    environment:
+      FIELD_STRENGTH_ARTIFACT_ROOT: /artifacts
+      FIELD_STRENGTH_ENABLE_CALCULATIONS: "1"
+      FIELD_STRENGTH_DEM_CATALOG: /config/dem-catalog.json
+      FIELD_STRENGTH_BASEMAP_CATALOG: /config/basemap-catalog.json
+      FIELD_STRENGTH_CORS_ORIGINS: ${FIELD_STRENGTH_CORS_ORIGINS:-http://localhost:3000}
+      FIELD_STRENGTH_DEMO_ROOT: /app/demo
+      FIELD_STRENGTH_DATABASE: /database/stations.sqlite3
+      FIELD_STRENGTH_ADMIN_API_KEY: ${FIELD_STRENGTH_ADMIN_API_KEY:-change-me-before-public-use}
+      ITU_AUTO_DOWNLOAD: "1"
+      COVERAGE_WORKERS: ${COVERAGE_WORKERS:-auto}
+    volumes:
+      - ./runtime/artifacts:/artifacts
+      - ./runtime/dem:/data/dem:ro
+      - ./runtime/basemaps:/data/basemaps:ro
+      - ./runtime/dem-cache:/cache/dem
+      - ./runtime/database:/database
+      - ./runtime/itu:/itu:ro
+      - ./config/dem-catalog.json:/config/dem-catalog.json:ro
+      - ./config/basemap-catalog.json:/config/basemap-catalog.json:ro
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-12G}

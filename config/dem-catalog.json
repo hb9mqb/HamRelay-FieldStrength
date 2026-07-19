@@ -1,0 +1,18 @@
+{
+  "local-auto-dem": {
+    "source": "User-provided DEM files mounted at /data/dem",
+    "bounds": [-180, -90, 180, 90],
+    "resolution_m": 30,
+    "priority": 10,
+    "dem_paths": ["/data/dem/*.tif"]
+  },
+  "copernicus-glo30-auto": {
+    "source": "Copernicus DEM GLO-30 Public via AWS Open Data",
+    "bounds": [-180, -90, 180, 90],
+    "resolution_m": 30,
+    "priority": 5,
+    "dem_paths": [],
+    "auto_provider": "copernicus-glo30-aws",
+    "cache_directory": "/cache/dem"
+  }
+}
