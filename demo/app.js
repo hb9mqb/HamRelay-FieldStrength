@@ -22,11 +22,12 @@ async function loadStations() {
   const coverage = await json("/v1/coverages");
   const calculated = new Set(coverage.items.map(item=>item.station_id));
   const previous = new Set(selectedIds());
+  const autoSelected = previous.size ? null : stations.find(s=>calculated.has(s.station_id))?.station_id;
   $("stationList").replaceChildren();
   if(!stations.length) $("stationList").append(Object.assign(document.createElement("p"),{textContent:"No stations yet. Add the example below."}));
   stations.forEach(s=>{
     const label=document.createElement("label"); label.className="station";
-    const input=document.createElement("input"); input.type="checkbox"; input.value=s.station_id; input.checked=previous.has(s.station_id);
+    const input=document.createElement("input"); input.type="checkbox"; input.value=s.station_id; input.checked=previous.has(s.station_id)||s.station_id===autoSelected;
     const name=document.createElement("b"); name.textContent=s.station_id;
     const details=document.createElement("span"); details.textContent=`${s.mode??""} ${s.tx_frequency_mhz} MHz${calculated.has(s.station_id)?" · calculated":""}`;
     label.append(input,name,details); $("stationList").append(label);
@@ -79,4 +80,4 @@ $("terrainMode").onchange=()=>$("datasetId").disabled=$("terrainMode").value!=="
 $("radius").oninput=()=>$("radiusValue").value=`${$("radius").value} km`; $("threshold").oninput=()=>{$("thresholdValue").value=`${$("threshold").value} dBµV/m`;if(overlays.length)showOverlay()}; $("opacity").oninput=()=>{$("opacityValue").value=`${$("opacity").value}%`;overlays.forEach(layer=>layer.setOpacity(+$("opacity").value/100))};
 $("stationList").onchange=()=>{updateLegend();updateDownloads();if(overlays.length)showOverlay()};
 function showError(error){$("jobStatus").textContent=error.message}
-loadStations().then(updateLegend).catch(showError);
+loadStations().then(()=>{updateLegend();updateDownloads();if(selectedIds().length)showOverlay()}).catch(showError);
