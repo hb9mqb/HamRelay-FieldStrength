@@ -67,3 +67,9 @@ contract changes, add a changelog entry, and confirm that no private station
 database, internal URL, credential, copyrighted terrain tile or ITU digital map
 has entered the diff. By contributing, you agree that your contribution is
 licensed under the MIT License.
+
+Every change is reviewed by the project owner, `@hb9mqb`, before it can enter
+the protected `main` branch or be included in a release. New commits invalidate
+an earlier approval, all review discussions must be resolved, and the required
+CI and container checks must pass. Approval is therefore explicit and applies
+to the exact revision that is merged or released.
