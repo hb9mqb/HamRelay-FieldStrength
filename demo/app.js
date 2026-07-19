@@ -47,14 +47,31 @@ async function calculateSelected() {
   const ids=selectedIds(); if(!ids.length) throw new Error("Select at least one station.");
   const formats=[]; if($("wantGeotiff").checked) formats.push("geotiff"); if($("wantTiles").checked) formats.push("tiles");
   if(!formats.length) throw new Error("Select at least one output format.");
-  for(const id of ids){
-    const body={station_id:id,radius_km:+$("radius").value,terrain_mode:$("terrainMode").value,output_formats:formats,geotiff_background:$("geotiffBackground").value,minimum_field_strength_dbuv_m:+$("threshold").value};
-    if(body.terrain_mode==="dataset") body.dem_dataset_id=$("datasetId").value;
-    const job=await json("/v1/calculations",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    let state=job; while(["queued","running"].includes(state.status)){ $("jobStatus").textContent=JSON.stringify(state,null,2); await new Promise(r=>setTimeout(r,1500)); state=await json(`/v1/calculations/${job.job_id}`); }
-    $("jobStatus").textContent=JSON.stringify(state,null,2); if(state.status!=="succeeded") throw new Error(state.error||"Calculation failed");
+  setCalculating(true);
+  try{
+    for(const [index,id] of ids.entries()){
+      const body={station_id:id,radius_km:+$("radius").value,terrain_mode:$("terrainMode").value,output_formats:formats,geotiff_background:$("geotiffBackground").value,minimum_field_strength_dbuv_m:+$("threshold").value};
+      if(body.terrain_mode==="dataset") body.dem_dataset_id=$("datasetId").value;
+      $("jobStatus").textContent=`Calculating ${id} · ${index+1} of ${ids.length}\nLoading terrain and evaluating 360° propagation…`;
+      const job=await json("/v1/calculations",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      let state=job; while(["queued","running"].includes(state.status)){ await new Promise(r=>setTimeout(r,1500)); state=await json(`/v1/calculations/${job.job_id}`); }
+      $("jobStatus").textContent=JSON.stringify(state,null,2); if(state.status!=="succeeded") throw new Error(state.error||"Calculation failed");
+    }
+    showOverlay(); updateDownloads();
+  }finally{
+    setCalculating(false);
   }
-  showOverlay(); updateDownloads();
+}
+
+function setCalculating(active){
+  const button=$("calculate"), status=$("jobStatus");
+  button.disabled=active; button.classList.toggle("loading",active);
+  button.textContent=active?"Calculating…":"Calculate selected";
+  for(const id of ["radius","terrainMode","datasetId","geotiffBackground","wantGeotiff","wantTiles"]){
+    $(id).disabled=active||(id==="datasetId"&&$("terrainMode").value!=="dataset");
+  }
+  status.classList.toggle("calculation-active",active);
+  status.setAttribute("aria-busy",String(active));
 }
 
 function showOverlay(){
