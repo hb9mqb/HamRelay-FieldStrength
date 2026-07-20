@@ -5,6 +5,24 @@ Versioning.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-20
+
+### Fixed
+
+- Reproject categorical WorldCover and radio-climate source tiles directly onto
+  the final common grid, preventing artificial NoData seams between adjacent
+  tiles with slightly different source grids.
+
+### Added
+
+- Record the exact radial sample count and both requested and effective worker
+  counts in calculation manifests.
+
+### Changed
+
+- Bumped the calculation algorithm contract to `field-strength-v3`. Existing
+  coverage artifacts that use tiled categorical inputs must be recalculated.
+
 ## [0.2.0] - 2026-07-19
 
 ### Added
