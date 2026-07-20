@@ -43,6 +43,8 @@ def load_projected_grid(
 ) -> tuple[np.ndarray, rasterio.Affine, CRS]:
     """Mosaic source rasters and reproject a bounded grid around the transmitter."""
 
+    if not paths:
+        raise ValueError("at least one source raster is required")
     margin_m = max(4 * resolution_m, radius_km * 20.0)
     reach_m = radius_km * 1000.0 + margin_m
     bbox = geographic_bbox(latitude_deg, longitude_deg, (reach_m / 1000.0) * 1.02)
@@ -50,35 +52,55 @@ def load_projected_grid(
     try:
         if any(source.crs != sources[0].crs for source in sources):
             raise ValueError("all source rasters must use the same CRS")
-        source_bounds = transform_bounds("EPSG:4326", sources[0].crs, *bbox, densify_pts=21)
-        mosaic, source_transform = merge(
-            sources,
-            bounds=source_bounds,
-            nodata=NODATA,
-            dtype="float32",
-            resampling=Resampling.nearest if categorical else Resampling.bilinear,
-        )
-        source_crs = sources[0].crs
+        if sources[0].crs is None:
+            raise ValueError("source rasters must define a CRS")
+        size = math.ceil(2 * reach_m / resolution_m)
+        destination_transform = from_origin(-reach_m, reach_m, resolution_m, resolution_m)
+        destination_crs = aeqd_crs(latitude_deg, longitude_deg)
+        destination = np.full((size, size), NODATA, dtype="float32")
+
+        if categorical:
+            # Warp each categorical tile straight onto the common final grid. An
+            # intermediate merge can manufacture one-pixel NoData seams when
+            # independently cropped source tiles have slightly different grids.
+            for source in sources:
+                tile = np.full(destination.shape, NODATA, dtype="float32")
+                reproject(
+                    rasterio.band(source, 1),
+                    tile,
+                    src_nodata=source.nodata,
+                    dst_transform=destination_transform,
+                    dst_crs=destination_crs,
+                    dst_nodata=NODATA,
+                    resampling=Resampling.nearest,
+                )
+                available = (destination == NODATA) & (tile != NODATA)
+                destination[available] = tile[available]
+        else:
+            source_bounds = transform_bounds("EPSG:4326", sources[0].crs, *bbox, densify_pts=21)
+            mosaic, source_transform = merge(
+                sources,
+                bounds=source_bounds,
+                nodata=NODATA,
+                dtype="float32",
+                resampling=Resampling.bilinear,
+            )
+            reproject(
+                mosaic[0],
+                destination,
+                src_transform=source_transform,
+                src_crs=sources[0].crs,
+                src_nodata=NODATA,
+                dst_transform=destination_transform,
+                dst_crs=destination_crs,
+                dst_nodata=NODATA,
+                resampling=Resampling.bilinear,
+            )
     finally:
         for source in sources:
             source.close()
-    size = math.ceil(2 * reach_m / resolution_m)
-    destination_transform = from_origin(-reach_m, reach_m, resolution_m, resolution_m)
-    destination_crs = aeqd_crs(latitude_deg, longitude_deg)
-    destination = np.full((size, size), NODATA, dtype="float32")
-    reproject(
-        mosaic[0],
-        destination,
-        src_transform=source_transform,
-        src_crs=source_crs,
-        src_nodata=NODATA,
-        dst_transform=destination_transform,
-        dst_crs=destination_crs,
-        dst_nodata=NODATA,
-        resampling=Resampling.nearest if categorical else Resampling.bilinear,
-    )
     if not np.any(destination != NODATA):
-        raise ValueError("DEM does not intersect the calculation domain")
+        raise ValueError("source rasters do not intersect the calculation domain")
     return destination, destination_transform, destination_crs
 
 

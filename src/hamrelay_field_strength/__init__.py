@@ -10,4 +10,4 @@ __all__ = [
     "field_to_receiver_dbm",
     "receiver_dbm_to_s_meter",
 ]
-__version__ = "0.2.0"
+__version__ = "0.2.1"

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "hamrelay-field-strength"
-version = "0.2.0"
+version = "0.2.1"
 description = "Reproducible terrain-aware repeater field-strength maps, web overlays, and S-meter sampling"
 readme = "README.md"
 requires-python = ">=3.11"

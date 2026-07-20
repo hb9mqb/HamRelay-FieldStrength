@@ -24,7 +24,7 @@ from .terrain import NODATA, load_projected_grid, sample_ray
 
 MODEL_ID = "itu-r-p1812-8"
 IMPLEMENTATION_ID = "Py1812-a5205e6"
-ALGORITHM_VERSION = "field-strength-v2"
+ALGORITHM_VERSION = "field-strength-v3"
 GEOD = Geod(ellps="WGS84")
 _STATE: dict[str, Any] = {}
 
@@ -539,6 +539,8 @@ def calculate(request: CalculationRequest) -> Result:
                 "minimum_rays": request.minimum_rays,
                 "outer_arc_spacing_m": request.outer_arc_spacing_m,
                 "rays": ray_count,
+                "radial_points": int(radial_km.size),
+                "requested_workers": request.workers,
                 "workers": workers,
                 "raster_backend": raster_backend,
                 "boundary_assessment": {

@@ -6,8 +6,8 @@ authors:
   - family-names: "Meier"
     given-names: "Beat W."
     alias: "HB9MQB"
-version: 0.1.0
-date-released: 2026-07-19
+version: 0.2.1
+date-released: 2026-07-20
 license: MIT
 repository-code: "https://github.com/hb9mqb/HamRelay-FieldStrength"
 abstract: >-
