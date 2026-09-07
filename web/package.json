@@ -12,5 +12,5 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": { "cesium": ">=1.120" },
-  "devDependencies": { "cesium": "^1.127.0", "typescript": "^5.7.3" }
+  "devDependencies": { "cesium": "^1.145.0", "typescript": "^5.7.3" }
 }
